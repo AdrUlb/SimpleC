@@ -1,5 +1,5 @@
 #pragma once
-#include "Util/New.h"
+#include "Util/Managed.h"
 #include "Util/Span.h"
 #include "Util/String.h"
 

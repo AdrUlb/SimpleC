@@ -1,7 +1,7 @@
 #include "File.h"
 
 #include <stdio.h>
-#include "New.h"
+#include "Managed.h"
 #include "String.h"
 
 void FileHandle_Init(FileHandle* handle, const char* path, const char* mode)

@@ -1,7 +1,7 @@
 #include "Lexer.h"
 #include "Util/Array.h"
 #include "Util/File.h"
-#include "Util/New.h"
+#include "Util/Managed.h"
 
 #define LIST_TYPE TokenList
 #define LIST_ELEMENT_TYPE Token
@@ -31,7 +31,7 @@ static TokenList* TokenizeSource(const ConstCharSpan source)
 
 int main(int argc, char* argv[])
 {
-	using const String* source = File_ReadAllText("integer_tests.c");
+	using const String* source = File_ReadAllText("test.c");
 	using const TokenList* tokens = TokenizeSource(String_AsConstCharSpan(source));
 
 	for (size_t i = 0; i < tokens->size; i++)

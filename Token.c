@@ -1,6 +1,6 @@
 #include "Token.h"
 
-#include "Util/New.h"
+#include "Util/Managed.h"
 
 String* Token_LiteralString_GetValue(const Token* token)
 {

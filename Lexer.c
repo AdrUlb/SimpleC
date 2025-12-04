@@ -2,13 +2,16 @@
 
 #include <ctype.h>
 
-#include "Util/New.h"
+#include "Util/Macros.h"
+#include "Util/Managed.h"
 
 typedef struct
 {
 	const char* str;
 	const Token_Type type;
 } TokenStringMapEntry;
+
+#define FLOATING_POINT_EXONENT_CHAR(isHex) ((isHex) ? 'p' : 'e')
 
 static const TokenStringMapEntry punctuators[] = {
 	// Three character punctuators
@@ -233,6 +236,26 @@ static const char* const tokenTypeName[TOKEN_MAX] = {
 static char Lexer_PeekChar(const Lexer* self);
 static char Lexer_ReadChar(Lexer* self);
 
+always_inline bool IsDigit(const char c)
+{
+	return c >= '0' && c <= '9';
+}
+
+always_inline bool IsBinaryDigit(const char c)
+{
+	return c == '0' || c == '1';
+}
+
+always_inline bool IsOctalDigit(const char c)
+{
+	return c >= '0' && c <= '7';
+}
+
+always_inline bool IsHexDigit(const char c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
 void Lexer_Init(Lexer* self, const ConstCharSpan source)
 {
 	self->source = source;
@@ -331,56 +354,60 @@ restart:
 		goto restart;
 	}
 
-	// Numeric literals
-	if ((c >= '0' && c <= '9') || (c == '.' && buf3[1] >= '0' && buf3[1] <= '9'))
+	// Numeric literals (integer and floating-point)
+	// Starts with a digit or a '.' followed by a digit
+	if (IsDigit(c) || (c == '.' && IsDigit(buf3[1])))
 	{
+		// Does the number have an integer part (does it start with a digit)?
 		const bool hasIntegerPart = c != '.';
+
+		// Is it hexadecimal, binary, or decimal/octal?
 		const bool isHex = c == '0' && (buf3[1] == 'x' || buf3[1] == 'X');
 		const bool isBin = c == '0' && (buf3[1] == 'b' || buf3[1] == 'B');
-		const bool isDecimal = !isHex && !isBin;
+		const bool isDecimalOrOctal = !isHex && !isBin;
 
+		// Keep track of whether the number consists of valid octal digits
 		bool isValidOctal = true;
 
+		// Determine the start of the integer part, consume radix prefix
 		size_t intStart = self->position - 1;
-
 		if (isHex || isBin)
 		{
-			intStart = self->position + 1;
+			intStart += 2;
 			Lexer_ReadChar(self);
 		}
 
+		// Consume integer part, if any
 		if (hasIntegerPart)
 		{
-			while (((c = Lexer_PeekChar(self))) && ((isDecimal && c >= '0' && c <= '9') ||
-			                                        (isBin && (c == '0' || c == '1')) ||
-			                                        (isHex && ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))))
+			while (((c = Lexer_PeekChar(self))) && ((isDecimalOrOctal && IsDigit(c)) || (isBin && IsBinaryDigit(c)) || (isHex && IsHexDigit(c))))
 			{
-				if (c > '7' && isDecimal)
+				if (c > '7' && isDecimalOrOctal)
 					isValidOctal = false;
 				Lexer_ReadChar(self);
 			}
 		}
-
 		const ConstCharSpan integerPart = ConstCharSpan_SubSpan(&self->source, intStart, self->position - intStart);
 
-		// Check for fractional part or exponent
-		const bool isInteger = hasIntegerPart && Lexer_PeekChar(self) != '.' && (isHex || (Lexer_PeekChar(self) != 'e' && Lexer_PeekChar(self) != 'E')) && (
-			                       !isHex || (Lexer_PeekChar(self) != 'p' && Lexer_PeekChar(self) != 'P'));
+		// Check for fractional part or exponent, to distinguish integer vs floating-point literal
+		char nextCharLower = (char)tolower(Lexer_PeekChar(self));
+		const bool isInteger = hasIntegerPart && nextCharLower != '.' && nextCharLower != FLOATING_POINT_EXONENT_CHAR(isHex);
 
+		// Invalid (floating-point literal cannot be binary)
 		if (!isInteger && isBin)
 			abort(); // TODO: handle invalid binary floating-point literal
 
 		// Integer literal
 		if (isInteger)
 		{
+			// Read suffix
 			buf3[0] = (char)tolower(Lexer_PeekChar(self));
 			buf3[1] = self->position + 1 < self->source.length ? (char)tolower(self->source.data[self->position + 1]) : '\0';
 			buf3[2] = self->position + 2 < self->source.length ? (char)tolower(self->source.data[self->position + 2]) : '\0';
 
+			// Determine type based on suffix
 			Token_LiteralInteger_Type type = TOKEN_LITERAL_INTEGER_TYPE_INT;
-
-			// ULL / LLU
-			if ((buf3[0] == 'u' && buf3[1] == 'l' && buf3[2] == 'l') || (buf3[0] == 'l' && buf3[1] == 'l' && buf3[2] == 'u'))
+			if ((buf3[0] == 'u' && buf3[1] == 'l' && buf3[2] == 'l') || (buf3[0] == 'l' && buf3[1] == 'l' && buf3[2] == 'u')) // ULL / LLU
 			{
 				type = TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONGLONG;
 				Lexer_ReadChar(self);
@@ -410,7 +437,7 @@ restart:
 				Lexer_ReadChar(self);
 			}
 
-			const ConstCharSpan lexeme = ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition);
+			// Determine base
 			size_t base = 10;
 			if (isHex)
 				base = 16;
@@ -419,49 +446,55 @@ restart:
 			else if (integerPart.length > 1 && integerPart.data[0] == '0')
 				base = 8;
 
+			// Invalid octal literal
 			if (base == 8 && !isValidOctal)
 				abort(); // TODO: handle invalid octal literal
+
+			const ConstCharSpan lexeme = ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition);
 			return (Token) { TOKEN_LITERAL_INTEGER, lexeme, startLine, startColumn, { .literalInteger = { integerPart, base, type } } };
 		}
 
+		// Floating-point literal
+
+		// Consume fractional part (if any)
 		bool hasFractionalPart = false;
 		ConstCharSpan fractionalPart = ConstCharSpan_Empty;
-
-		// Decimal floating-point literal
-		if (!hasIntegerPart || Lexer_PeekChar(self) == '.')
+		if (!hasIntegerPart || nextCharLower == '.')
 		{
-			// Consume '.'
+			// Consume '.' (only consume if there is an integer part)
 			if (hasIntegerPart)
 				Lexer_ReadChar(self);
 
+			// Consume fractional digits
 			const size_t fracStart = self->position;
-			while (((c = Lexer_PeekChar(self))) && ((c >= '0' && c <= '9') || (isHex && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))))
+			while (((c = Lexer_PeekChar(self))) && IsHexDigit(c))
 				Lexer_ReadChar(self);
 
+			// Determine if there actually is a fractional part
 			hasFractionalPart = self->position > fracStart;
 			fractionalPart = ConstCharSpan_SubSpan(&self->source, fracStart, self->position - fracStart);
 		}
 
+		// Consume exponent part, if any
 		bool hasExponent = false;
 		bool exponentIsNegative = false;
 		ConstCharSpan exponent = ConstCharSpan_Empty;
-
-		// Consume exponent part
-		const char exponentChar = (char)tolower(Lexer_PeekChar(self));
-		if ((!isHex && exponentChar == 'e') || (isHex && exponentChar == 'p'))
+		nextCharLower = (char)tolower(Lexer_PeekChar(self));
+		if (nextCharLower == FLOATING_POINT_EXONENT_CHAR(isHex))
 		{
-			Lexer_ReadChar(self); // Consume 'e', 'E', 'p', or 'P'
+			Lexer_ReadChar(self); // Consume exponent character
 
 			if (Lexer_PeekChar(self) == '+' || Lexer_PeekChar(self) == '-')
 				exponentIsNegative = Lexer_ReadChar(self) == '-'; // Consume '+' or '-'
 
 			const size_t expStart = self->position;
-			while (((c = Lexer_PeekChar(self))) && (c >= '0' && c <= '9'))
+			while (((c = Lexer_PeekChar(self))) && IsDigit(c))
 				Lexer_ReadChar(self);
 
 			hasExponent = self->position > expStart;
 			if (!hasExponent)
 				abort(); // TODO: handle invalid exponent
+
 			exponent = ConstCharSpan_SubSpan(&self->source, expStart, self->position - expStart);
 		}
 
