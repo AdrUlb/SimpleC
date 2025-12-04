@@ -1,8 +1,6 @@
 #pragma once
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 typedef struct ManagedObjectHeader
 {
@@ -25,7 +23,7 @@ static void* NewImpl(const size_t size, void (*deleter)(void*))
 	return header + 1;
 }
 
-static void ReleaseImpl(void* ptr)
+static void ReleaseImpl(const void* ptr)
 {
 	if (ptr == NULL)
 		return;
@@ -38,13 +36,23 @@ static void ReleaseImpl(void* ptr)
 
 	// Call deleter
 	if (header->fini != NULL)
-		header->fini(ptr);
+		header->fini((void*)ptr);
 
 	// Free memory
 	free(header);
 }
 
 static void* RetainImpl(void* ptr)
+{
+	if (ptr != NULL)
+	{
+		ManagedObjectHeader* header = ((ManagedObjectHeader*)ptr) - 1;
+		header->refCount++;
+	}
+	return ptr;
+}
+
+static const void* RetainConstImpl(const void* ptr)
 {
 	if (ptr != NULL)
 	{
@@ -64,20 +72,8 @@ static void CleanupUsingImpl(void* ptr)
 }
 
 #define using __attribute__((cleanup(CleanupUsingImpl)))
-
-#define New(type, ...) \
-	({ \
-		type* p = NewImpl(sizeof(type), (void (*)(void*))type##_Fini); \
-		type##_Init(p __VA_OPT__(,) __VA_ARGS__); \
-		p; \
-	})
-
-#define NewWith(type, with, ...) \
-	({ \
-		type* p = NewImpl(sizeof(type), (void (*)(void*))type##_Fini); \
-		type##_Init_With_##with(p __VA_OPT__(,) __VA_ARGS__); \
-		p; \
-	})
-
+#define New(type, ...) type##_Init(NewImpl(sizeof(type), (void (*)(void*))type##_Fini) __VA_OPT__(,) __VA_ARGS__)
+#define NewWith(type, with, ...) type##_Init_With_##with(NewImpl(sizeof(type), (void (*)(void*))type##_Fini) __VA_OPT__(,) __VA_ARGS__)
 #define Release(ptr) ReleaseImpl(ptr)
 #define Retain(ptr) RetainImpl(ptr)
+#define RetainConst(ptr) RetainConstImpl(ptr)

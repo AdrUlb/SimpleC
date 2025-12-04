@@ -22,18 +22,19 @@ typedef struct SPAN_TYPE
 	size_t elementSize;
 } SPAN_TYPE;
 
-static void F(Init, SPAN_TYPE* self, SPAN_ELEMENT_TYPE* data, const size_t length)
+static SPAN_TYPE* F(Init, SPAN_TYPE* self, SPAN_ELEMENT_TYPE* data, const size_t length)
 {
 	self->data = data;
 	self->length = length;
 	self->elementSize = ELEMENT_SIZE;
+	return self;
 }
 
-static SPAN_TYPE F(SubSpan, const SPAN_TYPE* self, const size_t offset, const size_t length)
+static SPAN_TYPE F(SubSpan, const SPAN_TYPE self, const size_t offset, const size_t length)
 {
 	SPAN_TYPE newSpan;
-	assert(length == 0 || (offset < self->length && offset + length <= self->length));
-	F(Init, &newSpan, self->data + offset, length);
+	assert(length == 0 || (offset < self.length && offset + length <= self.length));
+	F(Init, &newSpan, self.data + offset, length);
 	return newSpan;
 }
 

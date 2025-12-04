@@ -22,10 +22,11 @@ typedef struct ARRAY_TYPE
 	size_t length;
 } ARRAY_TYPE;
 
-static void F(Init, ARRAY_TYPE* self, const size_t length)
+static ARRAY_TYPE* F(Init, ARRAY_TYPE* self, const size_t length)
 {
 	self->data = malloc(length * ELEMENT_SIZE);
 	self->length = length;
+	return self;
 }
 
 static void F(Fini, const ARRAY_TYPE* self)

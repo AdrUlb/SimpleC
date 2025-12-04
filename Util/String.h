@@ -24,18 +24,19 @@ typedef struct
 		String_Short__ short__;
 	};
 
-	size_t length__;
+	size_t length;
 	bool isLong__;
 } String;
 
-void String_Init(String* str);
-void String_Init_With_CString(String* str, const char* cstr);
-void String_Init_With_Capacity(String* str, size_t capacity);
+String* String_Init(String* self);
+String* String_Init_With_CString(String* self, const char* cstr);
+String* String_Init_With_Capacity(String* self, size_t capacity);
 void String_Fini(const String* str);
 size_t String_Length(const String* str);
 void String_Resize(String* str, size_t newLength);
 void String_AppendChar(String* str, char c);
 void String_AppendCString(String* str, const char* strToAppend);
+void String_AppendConstCharSpan(String* str, ConstCharSpan strToAppend);
 void String_AppendCodePoint(String* str, uint32_t codePoint);
 char* String_GetBuffer(String* str);
 const char* String_AsCString(const String* str);

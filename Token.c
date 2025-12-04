@@ -4,20 +4,22 @@
 
 String* Token_LiteralString_GetValue(const Token* token)
 {
-	assert(token->lexeme.data[0] == '\"');
-	assert(token->lexeme.data[token->lexeme.length - 1] == '\"');
+	const ConstCharSpan lexeme = token->location.snippet;
 
-	using String* str = New(String);
+	assert(lexeme.data[0] == '\"');
+	assert(lexeme.data[lexeme.length - 1] == '\"');
+
+	String* str = New(String);
 
 	String tempStr;
 	String_Init(&tempStr);
 
-	for (size_t i = 1; i < token->lexeme.length - 1; i++)
+	for (size_t i = 1; i < lexeme.length - 1; i++)
 	{
-		char c = token->lexeme.data[i];
+		char c = lexeme.data[i];
 		if (c == '\\')
 		{
-			c = token->lexeme.data[++i];
+			c = lexeme.data[++i];
 			switch (c)
 			{
 				case 'a': // Alert (bell)
@@ -58,14 +60,14 @@ String* Token_LiteralString_GetValue(const Token* token)
 					break;
 				case 'x': // Hexadecimal escape sequence
 				{
-					if (i == token->lexeme.length - 1)
+					if (i == lexeme.length - 1)
 					{
 						// TODO: error: incomplete hex escape sequence
 						abort();
 					}
 
 					String_Resize(&tempStr, 0);
-					while ((c = token->lexeme.data[i + 1]))
+					while ((c = lexeme.data[i + 1]))
 					{
 						if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
 						{
@@ -89,7 +91,7 @@ String* Token_LiteralString_GetValue(const Token* token)
 					const size_t expectedDigits = (c == 'u') ? 4 : 8;
 					for (size_t j = 0; j < expectedDigits; j++)
 					{
-						c = token->lexeme.data[i + 1];
+						c = lexeme.data[i + 1];
 						if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
 						{
 							String_AppendChar(&tempStr, c);
@@ -111,7 +113,7 @@ String* Token_LiteralString_GetValue(const Token* token)
 					String_AppendChar(&tempStr, c);
 					for (size_t j = 0; j < 2; j++)
 					{
-						c = token->lexeme.data[i + 1];
+						c = lexeme.data[i + 1];
 						if (c >= '0' && c <= '7')
 						{
 							String_AppendChar(&tempStr, c);
@@ -141,5 +143,5 @@ String* Token_LiteralString_GetValue(const Token* token)
 	}
 
 	String_Fini(&tempStr);
-	return Retain(str);
+	return str;
 }

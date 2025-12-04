@@ -22,10 +22,10 @@ typedef struct LIST_TYPE
 	size_t capacity;
 } LIST_TYPE;
 
-static void F(Init_With_Capacity, LIST_TYPE* self, const size_t initialCapacity)
+static LIST_TYPE* F(Init_With_Capacity, LIST_TYPE* self, const size_t initialCapacity)
 {
 	if (self == NULL)
-		return;
+		return self;
 
 	self->data = malloc(ELEMENT_SIZE * initialCapacity);
 	if (self->data == NULL)
@@ -35,11 +35,13 @@ static void F(Init_With_Capacity, LIST_TYPE* self, const size_t initialCapacity)
 
 	self->capacity = initialCapacity;
 	self->size = 0;
+	return self;
 }
 
-static void F(Init, LIST_TYPE* self)
+static LIST_TYPE* F(Init, LIST_TYPE* self)
 {
 	F(Init_With_Capacity, self, 16);
+	return self;
 }
 
 static void F(Fini, const LIST_TYPE* self)

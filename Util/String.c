@@ -2,38 +2,43 @@
 
 #include <string.h>
 
-void String_Init(String* str)
+String* String_Init(String* self)
 {
-	String_Init_With_Capacity(str, 0);
+	String_Init_With_Capacity(self, 0);
+	return self;
 }
 
-void String_Init_With_CString(String* str, const char* cstr)
+String* String_Init_With_CString(String* self, const char* cstr)
 {
 	const size_t len = cstr == NULL ? 0 : strlen(cstr);
-	String_Init_With_Capacity(str, len);
-	String_Resize(str, len);
+	String_Init_With_Capacity(self, len);
+	String_Resize(self, len);
 
-	char* buffer = String_GetBuffer(str);
+	char* buffer = String_GetBuffer(self);
 	strncpy(buffer, cstr, len);
 	buffer[len] = '\0';
+
+	return self;
 }
 
-void String_Init_With_Capacity(String* str, const size_t capacity)
+String* String_Init_With_Capacity(String* self, const size_t capacity)
 {
 	if (capacity > STRING_SHORT_CAPACITY__)
 	{
-		str->long__.data = malloc(capacity + 1);
-		str->long__.data[0] = '\0';
-		str->long__.capacity = capacity;
+		self->long__.data = malloc(capacity + 1);
+		self->long__.data[0] = '\0';
+		self->long__.capacity = capacity;
 
-		str->isLong__ = true;
-		str->length__ = 0;
-		return;
+		self->isLong__ = true;
+		self->length = 0;
+		return self;
 	}
 
-	str->short__.data[0] = '\0';
-	str->isLong__ = false;
-	str->length__ = 0;
+	self->short__.data[0] = '\0';
+	self->isLong__ = false;
+	self->length = 0;
+
+	return self;
 }
 
 void String_Fini(const String* str)
@@ -44,7 +49,7 @@ void String_Fini(const String* str)
 
 size_t String_Length(const String* str)
 {
-	return str->length__;
+	return str->length;
 }
 
 void String_Resize(String* str, const size_t newLength)
@@ -53,7 +58,7 @@ void String_Resize(String* str, const size_t newLength)
 	{
 		if (newLength <= str->long__.capacity)
 		{
-			str->length__ = newLength;
+			str->length = newLength;
 			return;
 		}
 
@@ -65,13 +70,13 @@ void String_Resize(String* str, const size_t newLength)
 		str->long__.data = realloc(str->long__.data, newCapacity + 1);
 		str->long__.data[newLength] = '\0';
 
-		str->length__ = newLength;
+		str->length = newLength;
 		return;
 	}
 
 	if (newLength <= STRING_SHORT_CAPACITY__)
 	{
-		str->length__ = newLength;
+		str->length = newLength;
 		return;
 	}
 
@@ -81,13 +86,13 @@ void String_Resize(String* str, const size_t newLength)
 		newCapacity = newCapacity + newCapacity / 2;
 
 	char* newData = malloc(newCapacity + 1);
-	strncpy(newData, str->short__.data, str->length__);
+	strncpy(newData, str->short__.data, str->length);
 	newData[newLength] = '\0';
 
 	str->long__.capacity = newCapacity;
 	str->long__.data = newData;
 
-	str->length__ = newLength;
+	str->length = newLength;
 	str->isLong__ = true;
 }
 
@@ -113,6 +118,16 @@ void String_AppendCString(String* str, const char* strToAppend)
 	char* buffer = String_GetBuffer(str);
 	strncpy(buffer, strToAppend, appendLen);
 	buffer[len + appendLen] = '\0';
+}
+
+void String_AppendConstCharSpan(String* str, const ConstCharSpan strToAppend)
+{
+	const size_t len = String_Length(str);
+	String_Resize(str, len + strToAppend.length);
+
+	char* buffer = String_GetBuffer(str);
+	strncpy(buffer, strToAppend.data, strToAppend.length);
+	buffer[len + strToAppend.length] = '\0';
 }
 
 void String_AppendCodePoint(String* str, uint32_t codePoint)

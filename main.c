@@ -1,6 +1,6 @@
 #include "Lexer.h"
+#include "SourceFile.h"
 #include "Util/Array.h"
-#include "Util/File.h"
 #include "Util/Managed.h"
 
 #define LIST_TYPE TokenList
@@ -9,12 +9,12 @@
 #undef LIST_TYPE
 #undef LIST_ELEMENT_TYPE
 
-static TokenList* TokenizeSource(const ConstCharSpan source)
+static TokenList* TokenizeSource(const SourceFile* source, CompilerErrorList* errorList)
 {
-	using TokenList* tokens = New(TokenList);
+	TokenList* tokens = New(TokenList);
 
 	Lexer lexer;
-	Lexer_Init(&lexer, source);
+	Lexer_Init(&lexer, source, errorList);
 
 	while (true)
 	{
@@ -26,22 +26,24 @@ static TokenList* TokenizeSource(const ConstCharSpan source)
 		TokenList_Append(tokens, token);
 	}
 
-	return Retain(tokens);
+	Lexer_Fini(&lexer);
+	return tokens;
 }
 
 int main(int argc, char* argv[])
 {
-	using const String* source = File_ReadAllText("test.c");
-	using const TokenList* tokens = TokenizeSource(String_AsConstCharSpan(source));
+	using const SourceFile* source = New(SourceFile, "test.c");
+	using CompilerErrorList* errorList = New(CompilerErrorList);
+	using const TokenList* tokens = TokenizeSource(source, errorList);
 
 	for (size_t i = 0; i < tokens->size; i++)
 	{
 		const Token token = tokens->data[i];
 		printf("%s: Lexeme='%.*s', Line=%zu, Column=%zu\n",
 		       Lexer_GetTokenTypeName(token.type),
-		       Span_AsFormat(&token.lexeme),
-		       token.line,
-		       token.column);
+		       Span_AsFormat(&token.location.snippet),
+		       token.location.line,
+		       token.location.column);
 
 		if (token.type == TOKEN_LITERAL_STRING)
 		{
@@ -50,10 +52,10 @@ int main(int argc, char* argv[])
 		}
 		else if (token.type == TOKEN_LITERAL_INTEGER)
 		{
-			printf("  -> Value: '%.*s'\n", Span_AsFormat(&token.literalInteger.value));
-			printf("  -> Base: %zu\n", token.literalInteger.base);
+			printf("  -> Value: '%.*s'\n", Span_AsFormat(&token.data.literalInteger.value));
+			printf("  -> Base: %zu\n", token.data.literalInteger.base);
 			printf("  -> Type: ");
-			switch (token.literalInteger.type)
+			switch (token.data.literalInteger.type)
 			{
 				case TOKEN_LITERAL_INTEGER_TYPE_INT:
 					printf("int\n");
@@ -77,24 +79,24 @@ int main(int argc, char* argv[])
 		}
 		else if (token.type == TOKEN_LITERAL_FLOAT)
 		{
-			printf("  -> Hexadecimal: %s\n", token.literalDecimalFloat.isHex ? "true" : "false");
+			printf("  -> Hexadecimal: %s\n", token.data.literalDecimalFloat.isHex ? "true" : "false");
 
-			if (token.literalDecimalFloat.hasIntegerPart)
-				printf("  -> Integer Part: %.*s\n", Span_AsFormat(&token.literalDecimalFloat.integerPart));
+			if (token.data.literalDecimalFloat.hasIntegerPart)
+				printf("  -> Integer Part: %.*s\n", Span_AsFormat(&token.data.literalDecimalFloat.integerPart));
 			else
 				printf("  -> Integer Part: <none>\n");
-			if (token.literalDecimalFloat.hasFractionalPart)
-				printf("  -> Fractional Part: %.*s\n", Span_AsFormat(&token.literalDecimalFloat.fractionalPart));
+			if (token.data.literalDecimalFloat.hasFractionalPart)
+				printf("  -> Fractional Part: %.*s\n", Span_AsFormat(&token.data.literalDecimalFloat.fractionalPart));
 			else
 				printf("  -> Fractional Part: <none>\n");
-			if (token.literalDecimalFloat.hasExponent)
-				printf("  -> Exponent Part: %c%.*s\n", token.literalDecimalFloat.exponentIsNegative ? '-' : '+',
-				       Span_AsFormat(&token.literalDecimalFloat.exponentPart));
+			if (token.data.literalDecimalFloat.hasExponent)
+				printf("  -> Exponent Part: %c%.*s\n", token.data.literalDecimalFloat.exponentIsNegative ? '-' : '+',
+				       Span_AsFormat(&token.data.literalDecimalFloat.exponentPart));
 			else
 				printf("  -> Exponent Part: <none>\n");
 
 			printf("  -> Type: ");
-			switch (token.literalDecimalFloat.type)
+			switch (token.data.literalDecimalFloat.type)
 			{
 				case TOKEN_LITERAL_FLOAT_TYPE_DOUBLE:
 					printf("double\n");
@@ -125,6 +127,12 @@ int main(int argc, char* argv[])
 					break;
 			}
 		}
+	}
+
+	for (size_t i = 0; i < errorList->size; i++)
+	{
+		const CompilerError* error = errorList->data + i;
+		printf("%s:%zu:%zu: error: %s\n", error->location.sourceFile->path, error->location.line, error->location.column, error->message);
 	}
 
 	return 0;

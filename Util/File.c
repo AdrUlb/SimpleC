@@ -4,9 +4,10 @@
 #include "Managed.h"
 #include "String.h"
 
-void FileHandle_Init(FileHandle* handle, const char* path, const char* mode)
+FileHandle* FileHandle_Init(FileHandle* self, const char* path, const char* mode)
 {
-	handle->file = fopen(path, mode);
+	self->file = fopen(path, mode);
+	return self;
 }
 
 void FileHandle_Fini(FileHandle* handle)

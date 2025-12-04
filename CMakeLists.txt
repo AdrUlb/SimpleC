@@ -30,6 +30,8 @@ set(SOURCES
 		Parser.h
 		Parser.c
 		main.c
+		CompilerError.h
+		SourceFile.h
 )
 add_executable(SimpleC ${UTIL_SOURCES} ${SOURCES})
 

@@ -1,4 +1,5 @@
 #pragma once
+#include "SourceFile.h"
 #include "Util/Managed.h"
 #include "Util/Span.h"
 #include "Util/String.h"
@@ -168,19 +169,33 @@ typedef struct
 	Token_LiteralFloat_Type type;
 } Token_LiteralFloat;
 
+typedef union
+{
+	Token_LiteralInteger literalInteger;
+	Token_LiteralFloat literalDecimalFloat;
+} Token_Data;
+
 typedef struct
 {
 	Token_Type type;
-	ConstCharSpan lexeme;
-	size_t line;
-	size_t column;
-
-	union
-	{
-		Token_LiteralInteger literalInteger;
-		Token_LiteralFloat literalDecimalFloat;
-	};
+	SourceLocation location;
+	Token_Data data;
 } Token;
+
+always_inline Token* Token_Init(Token* self, const Token_Type type, const SourceLocation location, const Token_Data data)
+{
+	self->type = type;
+	self->location = location;
+	self->data = data;
+	return self;
+}
+
+always_inline Token Token_Create(const Token_Type type, const SourceLocation location, const Token_Data data)
+{
+	Token self;
+	Token_Init(&self, type, location, data);
+	return self;
+}
 
 String* Token_LiteralString_GetValue(const Token* token);
 ConstCharSpan Token_LiteralInteger_Get(const Token* token);

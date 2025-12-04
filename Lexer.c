@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 
+#include "SourceFile.h"
 #include "Util/Macros.h"
 #include "Util/Managed.h"
 
@@ -256,13 +257,18 @@ always_inline bool IsHexDigit(const char c)
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-void Lexer_Init(Lexer* self, const ConstCharSpan source)
+Lexer* Lexer_Init(Lexer* self, const SourceFile* source, CompilerErrorList* errorList)
 {
 	self->source = source;
 	self->position = 0;
 	self->line = 1;
 	self->column = 1;
+	self->errorList = errorList;
+
+	return self;
 }
+
+void Lexer_Fini(const Lexer* self) {}
 
 Token Lexer_GetNextToken(Lexer* self, const bool includeWhitespace, const bool includeComments)
 {
@@ -270,9 +276,9 @@ restart:
 	const size_t startPosition = self->position;
 	const size_t startLine = self->line;
 	const size_t startColumn = self->column;
-	if (self->position >= self->source.length)
+	if (self->position >= String_Length(self->source->content))
 	{
-		return (Token) { TOKEN_EOF, ConstCharSpan_SubSpan(&self->source, startPosition, 0), self->line, self->column, { } };
+		return Token_Create(TOKEN_EOF, SourceLocation_Create(self->source, startPosition, 0, startLine, startColumn), (Token_Data) { });
 	}
 
 	// Whitespace
@@ -284,13 +290,9 @@ restart:
 
 		if (includeWhitespace)
 		{
-			return (Token) {
-				TOKEN_WHITESPACE,
-				ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition),
-				self->line,
-				self->column,
-				{ }
-			};
+			return Token_Create(TOKEN_WHITESPACE,
+			                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
+			                    (Token_Data) { });
 		}
 
 		goto restart;
@@ -298,8 +300,8 @@ restart:
 
 	char buf3[3];
 	buf3[0] = c;
-	buf3[1] = self->position < self->source.length ? self->source.data[self->position] : '\0';
-	buf3[2] = self->position + 1 < self->source.length ? self->source.data[self->position + 1] : '\0';
+	buf3[1] = self->position < self->source->content->length ? String_AsCString(self->source->content)[self->position] : '\0';
+	buf3[2] = self->position + 1 < self->source->content->length ? String_AsCString(self->source->content)[self->position + 1] : '\0';
 
 	// Comments
 	if (buf3[0] == '/' && buf3[1] == '/')
@@ -312,11 +314,9 @@ restart:
 
 		if (includeComments)
 		{
-			return (Token) {
-				TOKEN_COMMENT_SINGLELINE,
-				ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition), startLine, startColumn,
-				{ }
-			};
+			return Token_Create(TOKEN_COMMENT_SINGLELINE,
+			                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
+			                    (Token_Data) { });
 		}
 
 		goto restart;
@@ -331,7 +331,11 @@ restart:
 		{
 			c = Lexer_ReadChar(self);
 			if (c == '\0')
+			{
+				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
+				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_UnterminatedComment, errorLoc));
 				break;
+			}
 
 			if (c == '*' && Lexer_PeekChar(self) == '/')
 			{
@@ -342,13 +346,9 @@ restart:
 
 		if (includeComments)
 		{
-			return (Token) {
-				TOKEN_COMMENT_MULTILINE,
-				ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition),
-				startLine,
-				startColumn,
-				{ }
-			};
+			return Token_Create(TOKEN_COMMENT_MULTILINE,
+			                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
+			                    (Token_Data) { });
 		}
 
 		goto restart;
@@ -387,7 +387,7 @@ restart:
 				Lexer_ReadChar(self);
 			}
 		}
-		const ConstCharSpan integerPart = ConstCharSpan_SubSpan(&self->source, intStart, self->position - intStart);
+		const ConstCharSpan integerPart = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), intStart, self->position - intStart);
 
 		// Check for fractional part or exponent, to distinguish integer vs floating-point literal
 		char nextCharLower = (char)tolower(Lexer_PeekChar(self));
@@ -395,15 +395,18 @@ restart:
 
 		// Invalid (floating-point literal cannot be binary)
 		if (!isInteger && isBin)
-			abort(); // TODO: handle invalid binary floating-point literal
+		{
+			const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
+			CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+		}
 
 		// Integer literal
 		if (isInteger)
 		{
 			// Read suffix
 			buf3[0] = (char)tolower(Lexer_PeekChar(self));
-			buf3[1] = self->position + 1 < self->source.length ? (char)tolower(self->source.data[self->position + 1]) : '\0';
-			buf3[2] = self->position + 2 < self->source.length ? (char)tolower(self->source.data[self->position + 2]) : '\0';
+			buf3[1] = self->position + 1 < self->source->content->length ? (char)tolower(String_AsCString(self->source->content)[self->position + 1]) : '\0';
+			buf3[2] = self->position + 2 < self->source->content->length ? (char)tolower(String_AsCString(self->source->content)[self->position + 2]) : '\0';
 
 			// Determine type based on suffix
 			Token_LiteralInteger_Type type = TOKEN_LITERAL_INTEGER_TYPE_INT;
@@ -448,10 +451,14 @@ restart:
 
 			// Invalid octal literal
 			if (base == 8 && !isValidOctal)
-				abort(); // TODO: handle invalid octal literal
+			{
+				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
+				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+			}
 
-			const ConstCharSpan lexeme = ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition);
-			return (Token) { TOKEN_LITERAL_INTEGER, lexeme, startLine, startColumn, { .literalInteger = { integerPart, base, type } } };
+			return Token_Create(TOKEN_LITERAL_INTEGER,
+			                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
+			                    (Token_Data) { .literalInteger = { integerPart, base, type } });
 		}
 
 		// Floating-point literal
@@ -472,7 +479,7 @@ restart:
 
 			// Determine if there actually is a fractional part
 			hasFractionalPart = self->position > fracStart;
-			fractionalPart = ConstCharSpan_SubSpan(&self->source, fracStart, self->position - fracStart);
+			fractionalPart = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), fracStart, self->position - fracStart);
 		}
 
 		// Consume exponent part, if any
@@ -493,9 +500,12 @@ restart:
 
 			hasExponent = self->position > expStart;
 			if (!hasExponent)
-				abort(); // TODO: handle invalid exponent
+			{
+				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
+				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+			}
 
-			exponent = ConstCharSpan_SubSpan(&self->source, expStart, self->position - expStart);
+			exponent = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), expStart, self->position - expStart);
 		}
 
 		Token_LiteralFloat_Type suffix = TOKEN_LITERAL_FLOAT_TYPE_DOUBLE;
@@ -518,7 +528,10 @@ restart:
 					suffix = TOKEN_LITERAL_FLOAT_TYPE_DECIMAL128;
 					break;
 				default:
-					abort(); // TODO: handle invalid decimal float suffix
+				{
+					const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
+					CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+				}
 			}
 
 			Lexer_ReadChar(self);
@@ -531,7 +544,9 @@ restart:
 				case 'f':
 				{
 					buf3[0] = (char)tolower(Lexer_PeekChar(self));
-					buf3[1] = self->position + 1 < self->source.length ? (char)tolower(self->source.data[self->position + 1]) : '\0';
+					buf3[1] = self->position + 1 < self->source->content->length
+						          ? (char)tolower(String_AsCString(self->source->content)[self->position + 1])
+						          : '\0';
 					const bool isF16 = buf3[0] == '1' && buf3[1] == '6';
 					const bool isF32 = buf3[0] == '3' && buf3[1] == '2';
 					const bool isF64 = buf3[0] == '6' && buf3[1] == '4';
@@ -559,22 +574,22 @@ restart:
 			}
 		}
 
-		const ConstCharSpan lexeme = ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition);
-		return (Token) {
-			TOKEN_LITERAL_FLOAT, lexeme, startLine, startColumn, {
-				.literalDecimalFloat = {
-					isHex,
-					hasIntegerPart,
-					integerPart,
-					hasFractionalPart,
-					fractionalPart,
-					hasExponent,
-					exponentIsNegative,
-					exponent,
-					suffix
-				}
-			}
-		};
+		return Token_Create(TOKEN_LITERAL_FLOAT,
+		                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
+		                    (Token_Data) {
+			                    .literalDecimalFloat =
+			                    {
+				                    isHex,
+				                    hasIntegerPart,
+				                    integerPart,
+				                    hasFractionalPart,
+				                    fractionalPart,
+				                    hasExponent,
+				                    exponentIsNegative,
+				                    exponent,
+				                    suffix
+			                    }
+		                    });
 	}
 
 	// String literals
@@ -585,7 +600,11 @@ restart:
 			c = Lexer_ReadChar(self);
 
 			if (c == '\0' || c == '\n')
-				abort(); // TODO: handle unterminated string literal
+			{
+				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
+				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_UnterminatedStringLiteral, errorLoc));
+				break;
+			}
 
 			// Closing quote
 			if (c == '"')
@@ -596,13 +615,9 @@ restart:
 				Lexer_ReadChar(self);
 		}
 
-		return (Token) {
-			TOKEN_LITERAL_STRING,
-			ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition),
-			startLine,
-			startColumn,
-			{ }
-		};
+		return Token_Create(TOKEN_LITERAL_STRING,
+		                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
+		                    (Token_Data) { });
 	}
 
 	// Punctuators
@@ -616,12 +631,9 @@ restart:
 			for (size_t k = 1; k < len; k++)
 				Lexer_ReadChar(self);
 
-			return (Token) {
-				entry->type, ConstCharSpan_SubSpan(&self->source, startPosition, len),
-				startLine,
-				startColumn,
-				{ }
-			};
+			return Token_Create(entry->type,
+			                    SourceLocation_Create(self->source, startPosition, len, startLine, startColumn),
+			                    (Token_Data) { });
 		}
 	}
 
@@ -631,30 +643,27 @@ restart:
 		while (((c = Lexer_PeekChar(self))) && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'))
 			Lexer_ReadChar(self);
 
-		const ConstCharSpan lexeme = ConstCharSpan_SubSpan(&self->source, startPosition, self->position - startPosition);
+		const SourceLocation lexeme = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
 
 		for (size_t i = 0; i < sizeof(keywords) / sizeof(TokenStringMapEntry); i++)
 		{
 			const TokenStringMapEntry* entry = &keywords[i];
 
-			if (strlen(entry->str) == lexeme.length && memcmp(lexeme.data, entry->str, lexeme.length) == 0)
-				return (Token) {
-					entry->type, lexeme, startLine, startColumn,
-					{ }
-				};
+			if (strlen(entry->str) == lexeme.snippet.length && memcmp(lexeme.snippet.data, entry->str, lexeme.snippet.length) == 0)
+				return Token_Create(entry->type,
+				                    lexeme,
+				                    (Token_Data) { });
 		}
 
-		return (Token) { TOKEN_IDENTIFIER, lexeme, self->line, self->column, { } };
+		return Token_Create(TOKEN_IDENTIFIER,
+		                    lexeme,
+		                    (Token_Data) { });
 	}
 
 	// Unexpected character
-	return (Token) {
-		TOKEN_UNEXPECTED,
-		ConstCharSpan_SubSpan(&self->source, startPosition, 1),
-		self->line,
-		self->column,
-		{ }
-	};
+	return Token_Create(TOKEN_UNEXPECTED,
+	                    SourceLocation_Create(self->source, startPosition, 1, startLine, startColumn),
+	                    (Token_Data) { });
 }
 
 const char* Lexer_GetTokenTypeName(const Token_Type type)
@@ -664,10 +673,10 @@ const char* Lexer_GetTokenTypeName(const Token_Type type)
 
 char Lexer_PeekChar(const Lexer* self)
 {
-	if (self->position >= self->source.length)
+	if (self->position >= self->source->content->length)
 		return '\0';
 
-	const char c = self->source.data[self->position];
+	const char c = String_AsCString(self->source->content)[self->position];
 
 	if (c == '\r')
 		return '\n';
@@ -677,13 +686,13 @@ char Lexer_PeekChar(const Lexer* self)
 
 char Lexer_ReadChar(Lexer* self)
 {
-	if (self->position >= self->source.length)
+	if (self->position >= self->source->content->length)
 		return '\0';
 
-	const char c = self->source.data[self->position++];
+	const char c = String_AsCString(self->source->content)[self->position++];
 	if (c == '\r')
 	{
-		if (self->position < self->source.length && self->source.data[self->position] == '\n')
+		if (self->position < self->source->content->length && String_AsCString(self->source->content)[self->position] == '\n')
 			self->position++;
 
 		self->line++;
