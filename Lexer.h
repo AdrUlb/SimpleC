@@ -13,7 +13,6 @@ typedef struct Lexer
 	CompilerErrorList* errorList;
 } Lexer;
 
-Lexer* Lexer_Init(Lexer* self, const SourceFile* source, CompilerErrorList* errorList);
-void Lexer_Fini(const Lexer* self);
+Lexer Lexer_Create(const SourceFile* source, CompilerErrorList* errorList);
 Token Lexer_GetNextToken(Lexer* self, bool includeWhitespace, bool includeComments);
 const char* Lexer_GetTokenTypeName(Token_Type type);

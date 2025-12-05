@@ -4,14 +4,14 @@
 
 String* String_Init(String* self)
 {
-	String_Init_With_Capacity(self, 0);
+	String_Init_WithCapacity(self, 0);
 	return self;
 }
 
-String* String_Init_With_CString(String* self, const char* cstr)
+String* String_Init_WithCString(String* self, const char* cstr)
 {
 	const size_t len = cstr == NULL ? 0 : strlen(cstr);
-	String_Init_With_Capacity(self, len);
+	String_Init_WithCapacity(self, len);
 	String_Resize(self, len);
 
 	char* buffer = String_GetBuffer(self);
@@ -21,7 +21,7 @@ String* String_Init_With_CString(String* self, const char* cstr)
 	return self;
 }
 
-String* String_Init_With_Capacity(String* self, const size_t capacity)
+String* String_Init_WithCapacity(String* self, const size_t capacity)
 {
 	if (capacity > STRING_SHORT_CAPACITY__)
 	{
@@ -173,7 +173,7 @@ restart:
 
 replacementChar:
 	codePoint = 0xFFFD; // Replacement character
-	goto restart;;;
+	goto restart;
 }
 
 char* String_GetBuffer(String* str)
@@ -194,14 +194,10 @@ const char* String_AsCString(const String* str)
 
 CharSpan String_AsCharSpan(String* str)
 {
-	CharSpan span;
-	CharSpan_Init(&span, String_GetBuffer(str), String_Length(str));
-	return span;
+	return CharSpan_Create(String_GetBuffer(str), String_Length(str));
 }
 
 ConstCharSpan String_AsConstCharSpan(const String* str)
 {
-	ConstCharSpan span;
-	ConstCharSpan_Init(&span, String_AsCString(str), String_Length(str));
-	return span;
+	return ConstCharSpan_Create(String_AsCString(str), String_Length(str));
 }

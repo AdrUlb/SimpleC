@@ -13,8 +13,7 @@ static TokenList* TokenizeSource(const SourceFile* source, CompilerErrorList* er
 {
 	TokenList* tokens = New(TokenList);
 
-	Lexer lexer;
-	Lexer_Init(&lexer, source, errorList);
+	Lexer lexer = Lexer_Create(source, errorList);
 
 	while (true)
 	{
@@ -26,13 +25,12 @@ static TokenList* TokenizeSource(const SourceFile* source, CompilerErrorList* er
 		TokenList_Append(tokens, token);
 	}
 
-	Lexer_Fini(&lexer);
 	return tokens;
 }
 
 int main(int argc, char* argv[])
 {
-	using const SourceFile* source = New(SourceFile, "test.c");
+	using const SourceFile* source = NewWith(SourceFile, Path, "tests/test.c");
 	using CompilerErrorList* errorList = New(CompilerErrorList);
 	using const TokenList* tokens = TokenizeSource(source, errorList);
 

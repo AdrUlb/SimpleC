@@ -7,7 +7,7 @@ typedef struct
 	FILE* file;
 } FileHandle;
 
-FileHandle* FileHandle_Init(FileHandle* self, const char* path, const char* mode);
+FileHandle* FileHandle_Init_WithArgs(FileHandle* self, const char* path, const char* mode);
 void FileHandle_Fini(FileHandle* handle);
 void FileHandle_SetPos(const FileHandle* handle, size_t pos);
 size_t FileHandle_GetPos(const FileHandle* handle);

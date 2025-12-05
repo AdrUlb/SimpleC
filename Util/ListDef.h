@@ -22,7 +22,7 @@ typedef struct LIST_TYPE
 	size_t capacity;
 } LIST_TYPE;
 
-static LIST_TYPE* F(Init_With_Capacity, LIST_TYPE* self, const size_t initialCapacity)
+static LIST_TYPE* F(Init_WithCapacity, LIST_TYPE* self, const size_t initialCapacity)
 {
 	if (self == NULL)
 		return self;
@@ -40,7 +40,7 @@ static LIST_TYPE* F(Init_With_Capacity, LIST_TYPE* self, const size_t initialCap
 
 static LIST_TYPE* F(Init, LIST_TYPE* self)
 {
-	F(Init_With_Capacity, self, 16);
+	F(Init_WithCapacity, self, 16);
 	return self;
 }
 

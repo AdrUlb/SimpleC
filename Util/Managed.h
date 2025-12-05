@@ -72,8 +72,8 @@ static void CleanupUsingImpl(void* ptr)
 }
 
 #define using __attribute__((cleanup(CleanupUsingImpl)))
-#define New(type, ...) type##_Init(NewImpl(sizeof(type), (void (*)(void*))type##_Fini) __VA_OPT__(,) __VA_ARGS__)
-#define NewWith(type, with, ...) type##_Init_With_##with(NewImpl(sizeof(type), (void (*)(void*))type##_Fini) __VA_OPT__(,) __VA_ARGS__)
+#define New(type) type##_Init(NewImpl(sizeof(type), (void (*)(void*))type##_Fini))
+#define NewWith(type, with, ...) type##_Init_With##with(NewImpl(sizeof(type), (void (*)(void*))type##_Fini) __VA_OPT__(,) __VA_ARGS__)
 #define Release(ptr) ReleaseImpl(ptr)
 #define Retain(ptr) RetainImpl(ptr)
 #define RetainConst(ptr) RetainConstImpl(ptr)

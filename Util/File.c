@@ -4,7 +4,7 @@
 #include "Managed.h"
 #include "String.h"
 
-FileHandle* FileHandle_Init(FileHandle* self, const char* path, const char* mode)
+FileHandle* FileHandle_Init_WithArgs(FileHandle* self, const char* path, const char* mode)
 {
 	self->file = fopen(path, mode);
 	return self;
@@ -21,7 +21,7 @@ void FileHandle_Fini(FileHandle* handle)
 
 void FileHandle_SetPos(const FileHandle* handle, const size_t pos)
 {
-	fseek(handle->file, pos, SEEK_SET);
+	fseek(handle->file, (long)pos, SEEK_SET);
 }
 
 size_t FileHandle_GetPos(const FileHandle* handle)
@@ -50,7 +50,7 @@ void FileHandle_Write(const FileHandle* handle, const void* buffer, const size_t
 
 String* File_ReadAllText(const char* path)
 {
-	using const FileHandle* file = New(FileHandle, path, "r");
+	using const FileHandle* file = NewWith(FileHandle, Args, path, "r");
 	const size_t size = FileHandle_GetSize(file);
 
 	using String* str = NewWith(String, Capacity, size);

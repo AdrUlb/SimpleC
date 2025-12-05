@@ -29,8 +29,8 @@ typedef struct
 } String;
 
 String* String_Init(String* self);
-String* String_Init_With_CString(String* self, const char* cstr);
-String* String_Init_With_Capacity(String* self, size_t capacity);
+String* String_Init_WithCString(String* self, const char* cstr);
+String* String_Init_WithCapacity(String* self, size_t capacity);
 void String_Fini(const String* str);
 size_t String_Length(const String* str);
 void String_Resize(String* str, size_t newLength);

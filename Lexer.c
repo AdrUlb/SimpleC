@@ -4,7 +4,6 @@
 
 #include "SourceFile.h"
 #include "Util/Macros.h"
-#include "Util/Managed.h"
 
 typedef struct
 {
@@ -257,28 +256,27 @@ always_inline bool IsHexDigit(const char c)
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-Lexer* Lexer_Init(Lexer* self, const SourceFile* source, CompilerErrorList* errorList)
+Lexer Lexer_Create(const SourceFile* source, CompilerErrorList* errorList)
 {
-	self->source = source;
-	self->position = 0;
-	self->line = 1;
-	self->column = 1;
-	self->errorList = errorList;
-
-	return self;
+	return (Lexer) {
+		.source = source,
+		.position = 0,
+		.line = 1,
+		.column = 1,
+		.errorList = errorList,
+	};
 }
-
-void Lexer_Fini(const Lexer* self) {}
 
 Token Lexer_GetNextToken(Lexer* self, const bool includeWhitespace, const bool includeComments)
 {
+	size_t startPosition, startLine, startColumn;
 restart:
-	const size_t startPosition = self->position;
-	const size_t startLine = self->line;
-	const size_t startColumn = self->column;
+	startPosition = self->position;
+	startLine = self->line;
+	startColumn = self->column;
 	if (self->position >= String_Length(self->source->content))
 	{
-		return Token_Create(TOKEN_EOF, SourceLocation_Create(self->source, startPosition, 0, startLine, startColumn), (Token_Data) { });
+		return Token_Create(TOKEN_EOF, SourceLocation_Create(self->source, startPosition, 0, startLine, startColumn), (Token_Data) { 0 });
 	}
 
 	// Whitespace
@@ -292,7 +290,7 @@ restart:
 		{
 			return Token_Create(TOKEN_WHITESPACE,
 			                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
-			                    (Token_Data) { });
+			                    (Token_Data) { 0 });
 		}
 
 		goto restart;
@@ -316,7 +314,7 @@ restart:
 		{
 			return Token_Create(TOKEN_COMMENT_SINGLELINE,
 			                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
-			                    (Token_Data) { });
+			                    (Token_Data) { 0 });
 		}
 
 		goto restart;
@@ -348,7 +346,7 @@ restart:
 		{
 			return Token_Create(TOKEN_COMMENT_MULTILINE,
 			                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
-			                    (Token_Data) { });
+			                    (Token_Data) { 0 });
 		}
 
 		goto restart;
@@ -570,7 +568,7 @@ restart:
 					suffix = TOKEN_LITERAL_FLOAT_TYPE_LONGDOUBLE;
 					break;
 				default:
-					abort(); // Unreachable
+					;
 			}
 		}
 
@@ -617,7 +615,7 @@ restart:
 
 		return Token_Create(TOKEN_LITERAL_STRING,
 		                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
-		                    (Token_Data) { });
+		                    (Token_Data) { 0 });
 	}
 
 	// Punctuators
@@ -633,7 +631,7 @@ restart:
 
 			return Token_Create(entry->type,
 			                    SourceLocation_Create(self->source, startPosition, len, startLine, startColumn),
-			                    (Token_Data) { });
+			                    (Token_Data) { 0 });
 		}
 	}
 
@@ -652,18 +650,18 @@ restart:
 			if (strlen(entry->str) == lexeme.snippet.length && memcmp(lexeme.snippet.data, entry->str, lexeme.snippet.length) == 0)
 				return Token_Create(entry->type,
 				                    lexeme,
-				                    (Token_Data) { });
+				                    (Token_Data) { 0 });
 		}
 
 		return Token_Create(TOKEN_IDENTIFIER,
 		                    lexeme,
-		                    (Token_Data) { });
+		                    (Token_Data) { 0 });
 	}
 
 	// Unexpected character
 	return Token_Create(TOKEN_UNEXPECTED,
 	                    SourceLocation_Create(self->source, startPosition, 1, startLine, startColumn),
-	                    (Token_Data) { });
+	                    (Token_Data) { 0 });
 }
 
 const char* Lexer_GetTokenTypeName(const Token_Type type)

@@ -107,7 +107,15 @@ String* Token_LiteralString_GetValue(const Token* token)
 					String_AppendCodePoint(str, codepoint);
 					break;
 				}
-				case '0'...'7': // Octal escape sequence
+				// Octal escape sequence
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
 				{
 					String_Resize(&tempStr, 0);
 					String_AppendChar(&tempStr, c);

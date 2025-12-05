@@ -182,19 +182,13 @@ typedef struct
 	Token_Data data;
 } Token;
 
-always_inline Token* Token_Init(Token* self, const Token_Type type, const SourceLocation location, const Token_Data data)
-{
-	self->type = type;
-	self->location = location;
-	self->data = data;
-	return self;
-}
-
 always_inline Token Token_Create(const Token_Type type, const SourceLocation location, const Token_Data data)
 {
-	Token self;
-	Token_Init(&self, type, location, data);
-	return self;
+	return (Token){
+		.type = type,
+		.location = location,
+		.data = data,
+	};
 }
 
 String* Token_LiteralString_GetValue(const Token* token);
