@@ -35,4 +35,4 @@ set(SOURCES
 )
 add_executable(SimpleC ${UTIL_SOURCES} ${SOURCES})
 
-target_compile_options(SimpleC PRIVATE -Wall -Wextra -Wno-unused)
+target_compile_options(SimpleC PRIVATE -Wall -Wextra -Wno-unused -pedantic)
