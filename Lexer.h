@@ -10,9 +10,8 @@ typedef struct Lexer
 	size_t position;
 	int line;
 	int column;
-	CompilerErrorList* errorList;
+	CompilerErrorList* errors;
 } Lexer;
 
 Lexer Lexer_Create(const SourceFile* source, CompilerErrorList* errorList);
 Token Lexer_GetNextToken(Lexer* self, bool includeWhitespace, bool includeComments);
-const char* Lexer_GetTokenTypeName(Token_Type type);

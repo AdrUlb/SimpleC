@@ -5,236 +5,8 @@
 #include "SourceFile.h"
 #include "Util/Macros.h"
 
-typedef struct
-{
-	const char* str;
-	const Token_Type type;
-} TokenStringMapEntry;
-
-#define FLOATING_POINT_EXONENT_CHAR(isHex) ((isHex) ? 'p' : 'e')
-
-static const TokenStringMapEntry punctuators[] = {
-	// Three character punctuators
-	{ "<<=", TOKEN_PUNCTUATOR_LESS_LESS_EQUAL },
-	{ ">>=", TOKEN_PUNCTUATOR_GREATER_GREATER_EQUAL },
-	//3,  Two character punctuators
-	{ "==", TOKEN_PUNCTUATOR_EQUAL_EQUAL },
-	{ "!=", TOKEN_PUNCTUATOR_EXCLAMATION_EQUAL },
-	{ "<=", TOKEN_PUNCTUATOR_LESS_EQUAL },
-	{ ">=", TOKEN_PUNCTUATOR_GREATER_EQUAL },
-	{ "++", TOKEN_PUNCTUATOR_PLUS_PLUS },
-	{ "--", TOKEN_PUNCTUATOR_MINUS_MINUS },
-	{ "+=", TOKEN_PUNCTUATOR_PLUS_EQUAL },
-	{ "-=", TOKEN_PUNCTUATOR_MINUS_EQUAL },
-	{ "*=", TOKEN_PUNCTUATOR_ASTERISK_EQUAL },
-	{ "/=", TOKEN_PUNCTUATOR_SLASH_EQUAL },
-	{ "%=", TOKEN_PUNCTUATOR_PERCENT_EQUAL },
-	{ "&=", TOKEN_PUNCTUATOR_AMPERSAND_EQUAL },
-	{ "|=", TOKEN_PUNCTUATOR_PIPE_EQUAL },
-	{ "^=", TOKEN_PUNCTUATOR_CARET_EQUAL },
-	{ "&&", TOKEN_PUNCTUATOR_AMPERSAND_AMPERSAND },
-	{ "||", TOKEN_PUNCTUATOR_PIPE_PIPE },
-	{ "<<", TOKEN_PUNCTUATOR_LESS_LESS },
-	{ ">>", TOKEN_PUNCTUATOR_GREATER_GREATER },
-	// Single character punctuators
-	{ "=", TOKEN_PUNCTUATOR_EQUAL },
-	{ "+", TOKEN_PUNCTUATOR_PLUS },
-	{ "-", TOKEN_PUNCTUATOR_MINUS },
-	{ "*", TOKEN_PUNCTUATOR_ASTERISK },
-	{ "/", TOKEN_PUNCTUATOR_SLASH },
-	{ "%", TOKEN_PUNCTUATOR_PERCENT },
-	{ "&", TOKEN_PUNCTUATOR_AMPERSAND },
-	{ "|", TOKEN_PUNCTUATOR_PIPE },
-	{ "^", TOKEN_PUNCTUATOR_CARET },
-	{ "~", TOKEN_PUNCTUATOR_TILDE },
-	{ "!", TOKEN_PUNCTUATOR_EXCLAMATION },
-	{ "#", TOKEN_PUNCTUATOR_HASH },
-	{ "<", TOKEN_PUNCTUATOR_LESS },
-	{ ">", TOKEN_PUNCTUATOR_GREATER },
-	{ ".", TOKEN_PUNCTUATOR_PERIOD },
-	{ ",", TOKEN_PUNCTUATOR_COMMA },
-	{ ";", TOKEN_PUNCTUATOR_SEMICOLON },
-	{ "(", TOKEN_PUNCTUATOR_PARENOPEN },
-	{ ")", TOKEN_PUNCTUATOR_PARENCLOSE },
-	{ "{", TOKEN_PUNCTUATOR_BRACEOPEN },
-	{ "}", TOKEN_PUNCTUATOR_BRACECLOSE },
-	{ "[", TOKEN_PUNCTUATOR_BRACKETOPEN },
-	{ "]", TOKEN_PUNCTUATOR_BRACKETCLOSE },
-	{ "\"", TOKEN_PUNCTUATOR_DOUBLEQUOTE },
-	{ "\'", TOKEN_PUNCTUATOR_SINGLEQUOTE },
-};
-
-static const TokenStringMapEntry keywords[] = {
-
-	// Keywords: types
-	{ "char", TOKEN_KEYWORD_CHAR },
-	{ "double", TOKEN_KEYWORD_DOUBLE },
-	{ "float", TOKEN_KEYWORD_FLOAT },
-	{ "int", TOKEN_KEYWORD_INT },
-	{ "long", TOKEN_KEYWORD_LONG },
-	{ "short", TOKEN_KEYWORD_SHORT },
-	{ "void", TOKEN_KEYWORD_VOID },
-
-	// Keywords: qualifiers
-	{ "const", TOKEN_KEYWORD_CONST },
-	{ "volatile", TOKEN_KEYWORD_VOLATILE },
-	{ "signed", TOKEN_KEYWORD_SIGNED },
-	{ "unsigned", TOKEN_KEYWORD_UNSIGNED },
-	{ "restrict", TOKEN_KEYWORD_RESTRICT },
-
-	// Keywords: storage classes
-	{ "auto", TOKEN_KEYWORD_AUTO },
-	{ "extern", TOKEN_KEYWORD_EXTERN },
-	{ "register", TOKEN_KEYWORD_REGISTER },
-	{ "static", TOKEN_KEYWORD_STATIC },
-	{ "typedef", TOKEN_KEYWORD_TYPEDEF },
-
-	// Keywords: function specifiers
-	{ "inline", TOKEN_KEYWORD_INLINE },
-
-	// Keywords: structures
-	{ "struct", TOKEN_KEYWORD_STRUCT },
-	{ "union", TOKEN_KEYWORD_UNION },
-	{ "enum", TOKEN_KEYWORD_ENUM },
-
-	// Keywords: control flow
-	{ "if", TOKEN_KEYWORD_IF },
-	{ "else", TOKEN_KEYWORD_ELSE },
-	{ "switch", TOKEN_KEYWORD_SWITCH },
-	{ "case", TOKEN_KEYWORD_CASE },
-	{ "default", TOKEN_KEYWORD_DEFAULT },
-
-	// Keywords: loops/jumps
-	{ "for", TOKEN_KEYWORD_FOR },
-	{ "do", TOKEN_KEYWORD_DO },
-	{ "while", TOKEN_KEYWORD_WHILE },
-	{ "break", TOKEN_KEYWORD_BREAK },
-	{ "continue", TOKEN_KEYWORD_CONTINUE },
-	{ "goto", TOKEN_KEYWORD_GOTO },
-	{ "return", TOKEN_KEYWORD_RETURN },
-
-	// Keywords: operators
-	{ "", TOKEN_KEYWORD_SIZEOF },
-};
-
-static const char* const tokenTypeName[TOKEN_MAX] = {
-
-	"TOKEN_EOF",
-	"TOKEN_UNEXPECTED",
-	"TOKEN_WHITESPACE",
-	"TOKEN_COMMENT_SINGLELINE",
-	"TOKEN_COMMENT_MULTILINE",
-
-	"TOKEN_LITERAL_INTEGER",
-	"TOKEN_LITERAL_DECIMALFLOAT",
-	"TOKEN_LITERAL_STRING",
-
-	"TOKEN_IDENTIFIER",
-
-	// Keywords: types
-	"TOKEN_KEYWORD_CHAR",
-	"TOKEN_KEYWORD_DOUBLE",
-	"TOKEN_KEYWORD_FLOAT",
-	"TOKEN_KEYWORD_INT",
-	"TOKEN_KEYWORD_LONG",
-	"TOKEN_KEYWORD_SHORT",
-	"TOKEN_KEYWORD_VOID",
-
-	// Keywords: qualifiers
-	"TOKEN_KEYWORD_CONST",
-	"TOKEN_KEYWORD_VOLATILE",
-	"TOKEN_KEYWORD_SIGNED",
-	"TOKEN_KEYWORD_UNSIGNED",
-	"TOKEN_KEYWORD_RESTRICT",
-
-	// Keywords: storage classes
-	"TOKEN_KEYWORD_AUTO",
-	"TOKEN_KEYWORD_EXTERN",
-	"TOKEN_KEYWORD_REGISTER",
-	"TOKEN_KEYWORD_STATIC",
-	"TOKEN_KEYWORD_TYPEDEF",
-
-	// Keywords: function specifiers
-	"TOKEN_KEYWORD_INLINE",
-
-	// Keywords: structures
-	"TOKEN_KEYWORD_STRUCT",
-	"TOKEN_KEYWORD_UNION",
-	"TOKEN_KEYWORD_ENUM",
-
-	// Keywords: control flow
-	"TOKEN_KEYWORD_IF",
-	"TOKEN_KEYWORD_ELSE",
-	"TOKEN_KEYWORD_SWITCH",
-	"TOKEN_KEYWORD_CASE",
-	"TOKEN_KEYWORD_DEFAULT",
-
-	// Keywords: loops/jumps
-	"TOKEN_KEYWORD_FOR",
-	"TOKEN_KEYWORD_DO",
-	"TOKEN_KEYWORD_WHILE",
-	"TOKEN_KEYWORD_BREAK",
-	"TOKEN_KEYWORD_CONTINUE",
-	"TOKEN_KEYWORD_GOTO",
-	"TOKEN_KEYWORD_RETURN",
-
-	// Keywords: operators
-	"TOKEN_KEYWORD_SIZEOF",
-
-	// Punctuators: single-character
-	"TOKEN_PUNCTUATOR_EQUAL",
-	"TOKEN_PUNCTUATOR_PLUS",
-	"TOKEN_PUNCTUATOR_MINUS",
-	"TOKEN_PUNCTUATOR_ASTERISK",
-	"TOKEN_PUNCTUATOR_SLASH",
-	"TOKEN_PUNCTUATOR_PERCENT",
-	"TOKEN_PUNCTUATOR_AMPERSAND",
-	"TOKEN_PUNCTUATOR_PIPE",
-	"TOKEN_PUNCTUATOR_CARET",
-	"TOKEN_PUNCTUATOR_TILDE",
-	"TOKEN_PUNCTUATOR_EXCLAMATION",
-	"TOKEN_PUNCTUATOR_HASH",
-	"TOKEN_PUNCTUATOR_LESS",
-	"TOKEN_PUNCTUATOR_GREATER",
-	"TOKEN_PUNCTUATOR_PERIOD",
-	"TOKEN_PUNCTUATOR_COMMA",
-	"TOKEN_PUNCTUATOR_SEMICOLON",
-	"TOKEN_PUNCTUATOR_PARENOPEN",
-	"TOKEN_PUNCTUATOR_PARENCLOSE",
-	"TOKEN_PUNCTUATOR_BRACEOPEN",
-	"TOKEN_PUNCTUATOR_BRACECLOSE",
-	"TOKEN_PUNCTUATOR_BRACKETOPEN",
-	"TOKEN_PUNCTUATOR_BRACKETCLOSE",
-	"TOKEN_PUNCTUATOR_DOUBLEQUOTE",
-	"TOKEN_PUNCTUATOR_SINGLEQUOTE",
-
-	// Punctuators: two-character
-	"TOKEN_PUNCTUATOR_EQUAL_EQUAL",
-	"TOKEN_PUNCTUATOR_EXCLAMATION_EQUAL",
-	"TOKEN_PUNCTUATOR_LESS_EQUAL",
-	"TOKEN_PUNCTUATOR_GREATER_EQUAL",
-	"TOKEN_PUNCTUATOR_PLUS_PLUS",
-	"TOKEN_PUNCTUATOR_MINUS_MINUS",
-	"TOKEN_PUNCTUATOR_PLUS_EQUAL",
-	"TOKEN_PUNCTUATOR_MINUS_EQUAL",
-	"TOKEN_PUNCTUATOR_ASTERISK_EQUAL",
-	"TOKEN_PUNCTUATOR_SLASH_EQUAL",
-	"TOKEN_PUNCTUATOR_PERCENT_EQUAL",
-	"TOKEN_PUNCTUATOR_AMPERSAND_EQUAL",
-	"TOKEN_PUNCTUATOR_PIPE_EQUAL",
-	"TOKEN_PUNCTUATOR_CARET_EQUAL",
-	"TOKEN_PUNCTUATOR_AMPERSAND_AMPERSAND",
-	"TOKEN_PUNCTUATOR_PIPE_PIPE",
-	"TOKEN_PUNCTUATOR_LESS_LESS",
-	"TOKEN_PUNCTUATOR_GREATER_GREATER",
-
-	// Punctuators: three-character
-	"TOKEN_PUNCTUATOR_LESS_LESS_EQUAL",
-	"TOKEN_PUNCTUATOR_GREATER_GREATER_EQUAL",
-};
-
 static char Lexer_PeekChar(const Lexer* self);
-static char Lexer_ReadChar(Lexer* self);
+static char Lexer_ConsumeChar(Lexer* self);
 
 always_inline bool IsDigit(const char c)
 {
@@ -263,7 +35,7 @@ Lexer Lexer_Create(const SourceFile* source, CompilerErrorList* errorList)
 		.position = 0,
 		.line = 1,
 		.column = 1,
-		.errorList = errorList,
+		.errors = errorList,
 	};
 }
 
@@ -280,11 +52,11 @@ restart:
 	}
 
 	// Whitespace
-	char c = Lexer_ReadChar(self);
+	char c = Lexer_ConsumeChar(self);
 	if (c == ' ' || c == '\t' || c == '\n')
 	{
 		while (((c = Lexer_PeekChar(self))) && (c == ' ' || c == '\t' || c == '\n'))
-			Lexer_ReadChar(self);
+			Lexer_ConsumeChar(self);
 
 		if (includeWhitespace)
 		{
@@ -305,10 +77,10 @@ restart:
 	if (buf3[0] == '/' && buf3[1] == '/')
 	{
 		// Single-line comment
-		Lexer_ReadChar(self); // Consume second '/'
+		Lexer_ConsumeChar(self); // Consume second '/'
 
 		while (((c = Lexer_PeekChar(self))) && c != '\n')
-			Lexer_ReadChar(self);
+			Lexer_ConsumeChar(self);
 
 		if (includeComments)
 		{
@@ -323,21 +95,21 @@ restart:
 	if (buf3[0] == '/' && buf3[1] == '*')
 	{
 		// Multi-line comment
-		Lexer_ReadChar(self); // Consume '*'
+		Lexer_ConsumeChar(self); // Consume '*'
 
 		while (true)
 		{
-			c = Lexer_ReadChar(self);
+			c = Lexer_ConsumeChar(self);
 			if (c == '\0')
 			{
 				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
-				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_UnterminatedComment, errorLoc));
+				CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_UnterminatedComment, errorLoc));
 				break;
 			}
 
 			if (c == '*' && Lexer_PeekChar(self) == '/')
 			{
-				Lexer_ReadChar(self); // consume '/'
+				Lexer_ConsumeChar(self); // consume '/'
 				break;
 			}
 		}
@@ -372,7 +144,7 @@ restart:
 		if (isHex || isBin)
 		{
 			intStart += 2;
-			Lexer_ReadChar(self);
+			Lexer_ConsumeChar(self);
 		}
 
 		// Consume integer part, if any
@@ -382,7 +154,7 @@ restart:
 			{
 				if (c > '7' && isDecimalOrOctal)
 					isValidOctal = false;
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 			}
 		}
 		const ConstCharSpan integerPart = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), intStart, self->position - intStart);
@@ -395,7 +167,7 @@ restart:
 		if (!isInteger && isBin)
 		{
 			const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
-			CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+			CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
 		}
 
 		// Integer literal
@@ -411,31 +183,31 @@ restart:
 			if ((buf3[0] == 'u' && buf3[1] == 'l' && buf3[2] == 'l') || (buf3[0] == 'l' && buf3[1] == 'l' && buf3[2] == 'u')) // ULL / LLU
 			{
 				type = TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONGLONG;
-				Lexer_ReadChar(self);
-				Lexer_ReadChar(self);
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
+				Lexer_ConsumeChar(self);
+				Lexer_ConsumeChar(self);
 			}
 			else if (buf3[0] == 'l' && buf3[1] == 'l') // LL / ll
 			{
 				type = TOKEN_LITERAL_INTEGER_TYPE_LONGLONG;
-				Lexer_ReadChar(self);
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
+				Lexer_ConsumeChar(self);
 			}
 			else if (buf3[0] == 'u' && buf3[1] == 'l') // UL
 			{
 				type = TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONG;
-				Lexer_ReadChar(self);
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
+				Lexer_ConsumeChar(self);
 			}
 			else if (buf3[0] == 'l') // L / l
 			{
 				type = TOKEN_LITERAL_INTEGER_TYPE_LONG;
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 			}
 			else if (buf3[0] == 'u') // U / u
 			{
 				type = TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDINT;
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 			}
 
 			// Determine base
@@ -451,7 +223,7 @@ restart:
 			if (base == 8 && !isValidOctal)
 			{
 				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
-				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+				CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
 			}
 
 			return Token_Create(TOKEN_LITERAL_INTEGER,
@@ -468,12 +240,12 @@ restart:
 		{
 			// Consume '.' (only consume if there is an integer part)
 			if (hasIntegerPart)
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 
 			// Consume fractional digits
 			const size_t fracStart = self->position;
 			while (((c = Lexer_PeekChar(self))) && IsHexDigit(c))
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 
 			// Determine if there actually is a fractional part
 			hasFractionalPart = self->position > fracStart;
@@ -487,20 +259,20 @@ restart:
 		nextCharLower = (char)tolower(Lexer_PeekChar(self));
 		if (nextCharLower == FLOATING_POINT_EXONENT_CHAR(isHex))
 		{
-			Lexer_ReadChar(self); // Consume exponent character
+			Lexer_ConsumeChar(self); // Consume exponent character
 
 			if (Lexer_PeekChar(self) == '+' || Lexer_PeekChar(self) == '-')
-				exponentIsNegative = Lexer_ReadChar(self) == '-'; // Consume '+' or '-'
+				exponentIsNegative = Lexer_ConsumeChar(self) == '-'; // Consume '+' or '-'
 
 			const size_t expStart = self->position;
 			while (((c = Lexer_PeekChar(self))) && IsDigit(c))
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 
 			hasExponent = self->position > expStart;
 			if (!hasExponent)
 			{
 				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
-				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+				CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
 			}
 
 			exponent = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), expStart, self->position - expStart);
@@ -511,7 +283,7 @@ restart:
 		char suffixChar = (char)tolower(Lexer_PeekChar(self));
 		if (suffixChar == 'd')
 		{
-			Lexer_ReadChar(self);
+			Lexer_ConsumeChar(self);
 			suffixChar = (char)tolower(Lexer_PeekChar(self));
 
 			switch (suffixChar)
@@ -528,15 +300,15 @@ restart:
 				default:
 				{
 					const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
-					CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
+					CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
 				}
 			}
 
-			Lexer_ReadChar(self);
+			Lexer_ConsumeChar(self);
 		}
 		else if (suffixChar == 'f' || suffixChar == 'l')
 		{
-			Lexer_ReadChar(self);
+			Lexer_ConsumeChar(self);
 			switch (suffixChar)
 			{
 				case 'f':
@@ -559,8 +331,8 @@ restart:
 
 					if (suffix != TOKEN_LITERAL_FLOAT_TYPE_FLOAT)
 					{
-						Lexer_ReadChar(self);
-						Lexer_ReadChar(self);
+						Lexer_ConsumeChar(self);
+						Lexer_ConsumeChar(self);
 					}
 					break;
 				}
@@ -590,30 +362,32 @@ restart:
 		                    });
 	}
 
-	// String literals
-	if (c == '"')
+	// String and character literals
+	if (c == '"' || c == '\'')
 	{
+		const char quoteChar = c;
 		while (true)
 		{
-			c = Lexer_ReadChar(self);
+			c = Lexer_ConsumeChar(self);
 
 			if (c == '\0' || c == '\n')
 			{
 				const SourceLocation errorLoc = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
-				CompilerErrorList_Append(self->errorList, CompilerError_Create(ErrorMsg_UnterminatedStringLiteral, errorLoc));
-				break;
+				CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_UnterminatedStringLiteral, errorLoc));
+				goto restart;
 			}
 
 			// Closing quote
-			if (c == '"')
+			if (c == quoteChar)
 				break;
 
 			// Escape sequence
 			if (c == '\\')
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 		}
 
-		return Token_Create(TOKEN_LITERAL_STRING,
+		const Token_Type type = quoteChar == '"' ? TOKEN_LITERAL_STRING : TOKEN_LITERAL_CHAR;
+		return Token_Create(type,
 		                    SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn),
 		                    (Token_Data) { 0 });
 	}
@@ -627,7 +401,7 @@ restart:
 		if (strncmp(buf3, entry->str, len) == 0)
 		{
 			for (size_t k = 1; k < len; k++)
-				Lexer_ReadChar(self);
+				Lexer_ConsumeChar(self);
 
 			return Token_Create(entry->type,
 			                    SourceLocation_Create(self->source, startPosition, len, startLine, startColumn),
@@ -639,7 +413,7 @@ restart:
 	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')
 	{
 		while (((c = Lexer_PeekChar(self))) && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'))
-			Lexer_ReadChar(self);
+			Lexer_ConsumeChar(self);
 
 		const SourceLocation lexeme = SourceLocation_Create(self->source, startPosition, self->position - startPosition, startLine, startColumn);
 
@@ -664,11 +438,6 @@ restart:
 	                    (Token_Data) { 0 });
 }
 
-const char* Lexer_GetTokenTypeName(const Token_Type type)
-{
-	return tokenTypeName[type];
-}
-
 char Lexer_PeekChar(const Lexer* self)
 {
 	if (self->position >= self->source->content->length)
@@ -682,7 +451,7 @@ char Lexer_PeekChar(const Lexer* self)
 	return c;
 }
 
-char Lexer_ReadChar(Lexer* self)
+char Lexer_ConsumeChar(Lexer* self)
 {
 	if (self->position >= self->source->content->length)
 		return '\0';

@@ -32,6 +32,7 @@ set(SOURCES
 		main.c
 		CompilerError.h
 		SourceFile.h
+		Expression.h
 )
 add_executable(SimpleC ${UTIL_SOURCES} ${SOURCES})
 

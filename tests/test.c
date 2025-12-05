@@ -1,5 +1,4 @@
 //#include <stdio.h>
-
 extern void puts(const char* str);
 
 int main(int argc, char* argv[])

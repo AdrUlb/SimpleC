@@ -7,6 +7,11 @@
 FileHandle* FileHandle_Init_WithArgs(FileHandle* self, const char* path, const char* mode)
 {
 	self->file = fopen(path, mode);
+	if (!self->file)
+	{
+		Release(self);
+		return NULL;
+	}
 	return self;
 }
 
@@ -51,11 +56,14 @@ void FileHandle_Write(const FileHandle* handle, const void* buffer, const size_t
 String* File_ReadAllText(const char* path)
 {
 	using const FileHandle* file = NewWith(FileHandle, Args, path, "r");
+	if (!file)
+		return NULL;
+
 	const size_t size = FileHandle_GetSize(file);
 
-	using String* str = NewWith(String, Capacity, size);
+	String* str = NewWith(String, Capacity, size);
 	String_Resize(str, size);
 	FileHandle_Read(file, String_GetBuffer(str), size);
 
-	return Retain(str);
+	return str;
 }

@@ -266,3 +266,9 @@
 #include "SpanDef.h"
 #undef SPAN_TYPE
 #undef SPAN_ELEMENT_TYPE
+
+#define SPAN_TYPE CStringSpan
+#define SPAN_ELEMENT_TYPE char*
+#include "SpanDef.h"
+#undef SPAN_TYPE
+#undef SPAN_ELEMENT_TYPE

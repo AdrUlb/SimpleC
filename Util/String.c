@@ -104,20 +104,7 @@ void String_AppendChar(String* str, const char c)
 	char* buffer = String_GetBuffer(str);
 	buffer[len] = c;
 	buffer[len + 1] = '\0';
-}
-
-void String_AppendCString(String* str, const char* strToAppend)
-{
-	if (strToAppend == NULL)
-		return;
-
-	const size_t len = String_Length(str);
-	const size_t appendLen = strlen(strToAppend);
-	String_Resize(str, len + appendLen);
-
-	char* buffer = String_GetBuffer(str);
-	strncpy(buffer, strToAppend, appendLen);
-	buffer[len + appendLen] = '\0';
+	str->length = len + 1;
 }
 
 void String_AppendConstCharSpan(String* str, const ConstCharSpan strToAppend)
@@ -126,8 +113,14 @@ void String_AppendConstCharSpan(String* str, const ConstCharSpan strToAppend)
 	String_Resize(str, len + strToAppend.length);
 
 	char* buffer = String_GetBuffer(str);
-	strncpy(buffer, strToAppend.data, strToAppend.length);
+	memcpy(buffer + len, strToAppend.data, strToAppend.length);
 	buffer[len + strToAppend.length] = '\0';
+	str->length = len + strToAppend.length;
+}
+
+void String_AppendCString(String* str, const char* strToAppend)
+{
+	String_AppendConstCharSpan(str, ConstCharSpan_Create(strToAppend, strlen(strToAppend)));
 }
 
 void String_AppendCodePoint(String* str, uint32_t codePoint)

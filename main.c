@@ -1,17 +1,206 @@
 #include "Lexer.h"
+#include "Parser.h"
 #include "SourceFile.h"
 #include "Util/Array.h"
 #include "Util/Managed.h"
 
-#define LIST_TYPE TokenList
-#define LIST_ELEMENT_TYPE Token
-#include "Util/ListDef.h"
-#undef LIST_TYPE
-#undef LIST_ELEMENT_TYPE
-
-static TokenList* TokenizeSource(const SourceFile* source, CompilerErrorList* errorList)
+typedef struct
 {
-	TokenList* tokens = New(TokenList);
+	size_t indent;
+	String output;
+} AstPrinter;
+
+static AstPrinter AstPrinter_Create(void)
+{
+	AstPrinter printer;
+	printer.indent = 0;
+	String_Init(&printer.output);
+	return printer;
+}
+
+static void AstPrinter_Destroy(const AstPrinter* self)
+{
+	String_Fini(&self->output);
+}
+
+static void AstPrinter_PrintIndentation(AstPrinter* self)
+{
+	for (size_t i = 0; i < self->indent * 4; i++)
+		String_AppendChar(&self->output, ' ');
+}
+
+typedef int a;
+
+static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
+{
+	switch (expr->type)
+	{
+		case EXPR_UNARY:
+			String_AppendCString(&self->output, "(Unary Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Operation: ");
+			String_AppendCString(&self->output, UnaryOperation_ToString(expr->data.unary.operation));
+			String_AppendCString(&self->output, ",\n");
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Expression: ");
+			AstPrinter_PrintExpression(self, expr->data.unary.expression);
+			String_AppendCString(&self->output, "\n");
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		case EXPR_BINARY:
+			String_AppendCString(&self->output, "(Binary Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Operation: ");
+			String_AppendCString(&self->output, BinaryOperation_ToString(expr->data.binary.operation));
+			String_AppendCString(&self->output, ",\n");
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Left: ");
+			AstPrinter_PrintExpression(self, expr->data.binary.left);
+			String_AppendCString(&self->output, ",\n");
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Right: ");
+			AstPrinter_PrintExpression(self, expr->data.binary.right);
+			String_AppendChar(&self->output, '\n');
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		case EXPR_TERNARY:
+			String_AppendCString(&self->output, "(Ternary Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Operation: ");
+			String_AppendCString(&self->output, TernaryOperation_ToString(expr->data.ternary.operation));
+			String_AppendCString(&self->output, ",\n");
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Left: ");
+			AstPrinter_PrintExpression(self, expr->data.ternary.left);
+			String_AppendCString(&self->output, ",\n");
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Middle: ");
+			AstPrinter_PrintExpression(self, expr->data.ternary.middle);
+			String_AppendCString(&self->output, ",\n");
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Right: ");
+			AstPrinter_PrintExpression(self, expr->data.ternary.right);
+			String_AppendChar(&self->output, '\n');
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		case EXPR_CAST:
+			String_AppendCString(&self->output, "(Cast Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "TODO!\n");
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		case EXPR_SIZEOF_TYPE:
+			String_AppendCString(&self->output, "(Sizeof Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "TODO!\n");
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		case EXPR_MEMBER_ACCESS:
+			String_AppendCString(&self->output, "(Member Access Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "TODO!\n");
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		case EXPR_CALL:
+			String_AppendCString(&self->output, "(Call Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "Arguments: [\n");
+			self->indent++;
+			for (size_t i = 0; i < expr->data.call.arguments->size; i++)
+			{
+				AstPrinter_PrintIndentation(self);
+				AstPrinter_PrintExpression(self, expr->data.call.arguments->data[i]);
+				if (i < expr->data.call.arguments->size - 1)
+					String_AppendChar(&self->output, ',');
+				String_AppendChar(&self->output, '\n');
+			}
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "]\n");
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		case EXPR_PRIMARY:
+		{
+			String_AppendCString(&self->output, "(Primary Expression) {\n");
+			self->indent++;
+
+			AstPrinter_PrintIndentation(self);
+			const Token* token = &expr->data.primary.literal;
+			switch (token->type)
+			{
+				case TOKEN_LITERAL_INTEGER:
+					String_AppendCString(&self->output, "Type: Integer Literal { Value: ");
+					break;
+				case TOKEN_LITERAL_FLOAT:
+					String_AppendCString(&self->output, "Type: Floating Point Literal { Value: ");
+					break;
+				case TOKEN_LITERAL_CHAR:
+					String_AppendCString(&self->output, "Type: Character Literal { Value: ");
+					break;
+				case TOKEN_LITERAL_STRING:
+					String_AppendCString(&self->output, "Type: String Literal { Value: ");
+					break;
+				case TOKEN_IDENTIFIER:
+					String_AppendCString(&self->output, "Type: Identifier { Name: ");
+					break;
+				default:
+					abort(); // Unexpected token type
+			}
+			String_AppendConstCharSpan(&self->output, token->location.snippet);
+			String_AppendCString(&self->output, " }\n");
+
+			self->indent--;
+			AstPrinter_PrintIndentation(self);
+			String_AppendCString(&self->output, "}");
+			break;
+		}
+	}
+}
+
+static void Parse(const SourceFile* source, CompilerErrorList* errorList)
+{
+	using TokenList* tokens = New(TokenList);
 
 	Lexer lexer = Lexer_Create(source, errorList);
 
@@ -22,110 +211,40 @@ static TokenList* TokenizeSource(const SourceFile* source, CompilerErrorList* er
 		if (token.type == TOKEN_EOF)
 			break;
 
-		TokenList_Append(tokens, token);
+		TokenList_AppendFromPtr(tokens, &token);
 	}
-
-	return tokens;
-}
-
-int main(int argc, char* argv[])
-{
-	using const SourceFile* source = NewWith(SourceFile, Path, "tests/test.c");
-	using CompilerErrorList* errorList = New(CompilerErrorList);
-	using const TokenList* tokens = TokenizeSource(source, errorList);
 
 	for (size_t i = 0; i < tokens->size; i++)
 	{
-		const Token token = tokens->data[i];
-		printf("%s: Lexeme='%.*s', Line=%zu, Column=%zu\n",
-		       Lexer_GetTokenTypeName(token.type),
-		       Span_AsFormat(&token.location.snippet),
-		       token.location.line,
-		       token.location.column);
-
-		if (token.type == TOKEN_LITERAL_STRING)
-		{
-			using const String* value = Token_LiteralString_GetValue(&token);
-			printf("  -> Value: '%s'\n", String_AsCString(value));
-		}
-		else if (token.type == TOKEN_LITERAL_INTEGER)
-		{
-			printf("  -> Value: '%.*s'\n", Span_AsFormat(&token.data.literalInteger.value));
-			printf("  -> Base: %zu\n", token.data.literalInteger.base);
-			printf("  -> Type: ");
-			switch (token.data.literalInteger.type)
-			{
-				case TOKEN_LITERAL_INTEGER_TYPE_INT:
-					printf("int\n");
-					break;
-				case TOKEN_LITERAL_INTEGER_TYPE_LONG:
-					printf("long\n");
-					break;
-				case TOKEN_LITERAL_INTEGER_TYPE_LONGLONG:
-					printf("long long\n");
-					break;
-				case TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDINT:
-					printf("unsigned int\n");
-					break;
-				case TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONG:
-					printf("unsigned long\n");
-					break;
-				case TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONGLONG:
-					printf("unsigned long long\n");
-					break;
-			}
-		}
-		else if (token.type == TOKEN_LITERAL_FLOAT)
-		{
-			printf("  -> Hexadecimal: %s\n", token.data.literalDecimalFloat.isHex ? "true" : "false");
-
-			if (token.data.literalDecimalFloat.hasIntegerPart)
-				printf("  -> Integer Part: %.*s\n", Span_AsFormat(&token.data.literalDecimalFloat.integerPart));
-			else
-				printf("  -> Integer Part: <none>\n");
-			if (token.data.literalDecimalFloat.hasFractionalPart)
-				printf("  -> Fractional Part: %.*s\n", Span_AsFormat(&token.data.literalDecimalFloat.fractionalPart));
-			else
-				printf("  -> Fractional Part: <none>\n");
-			if (token.data.literalDecimalFloat.hasExponent)
-				printf("  -> Exponent Part: %c%.*s\n", token.data.literalDecimalFloat.exponentIsNegative ? '-' : '+',
-				       Span_AsFormat(&token.data.literalDecimalFloat.exponentPart));
-			else
-				printf("  -> Exponent Part: <none>\n");
-
-			printf("  -> Type: ");
-			switch (token.data.literalDecimalFloat.type)
-			{
-				case TOKEN_LITERAL_FLOAT_TYPE_DOUBLE:
-					printf("double\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_FLOAT:
-					printf("float\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_LONGDOUBLE:
-					printf("long double\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_BINARY16:
-					printf("binary16\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_BINARY32:
-					printf("binary32\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_BINARY64:
-					printf("binary64\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_DECIMAL32:
-					printf("decimal32\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_DECIMAL64:
-					printf("decimal64\n");
-					break;
-				case TOKEN_LITERAL_FLOAT_TYPE_DECIMAL128:
-					printf("decimal128\n");
-					break;
-			}
-		}
+		const Token* token = &tokens->data[i];
+		Token_Print(token);
 	}
+
+	Parser parser = Parser_Create(tokens, errorList);
+
+	using const Expression* expr = Parser_ParseExpression(&parser);
+	if (expr)
+	{
+		AstPrinter printer = AstPrinter_Create();
+		AstPrinter_PrintExpression(&printer, expr);
+		printf("%s\n", String_AsCString(&printer.output));
+		AstPrinter_Destroy(&printer);
+	}
+}
+
+int main(const int argc, char* argv[])
+{
+	const CStringSpan args = CStringSpan_Create(argv, argc);
+
+	using const SourceFile* source = NewWith(SourceFile, Path, "tests/expression_test4.c");
+	if (source == NULL)
+	{
+		printf("Failed to open source file: tests/expression_test.c\n");
+		return 1;
+	}
+
+	using CompilerErrorList* errorList = New(CompilerErrorList);
+	Parse(source, errorList);
 
 	for (size_t i = 0; i < errorList->size; i++)
 	{
