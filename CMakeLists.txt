@@ -14,7 +14,6 @@ set(UTIL_SOURCES
 		Util/File.h
 		Util/List.h
 		Util/ListDef.h
-		Util/Macros.h
 		Util/Managed.h
 		Util/Span.h
 		Util/SpanDef.h
@@ -33,6 +32,7 @@ set(SOURCES
 		CompilerError.h
 		SourceFile.h
 		Expression.h
+		Type.h
 )
 add_executable(SimpleC ${UTIL_SOURCES} ${SOURCES})
 

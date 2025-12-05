@@ -1,6 +1,5 @@
 #pragma once
 #include "Util/File.h"
-#include "Util/Macros.h"
 #include "Util/Managed.h"
 #include "Util/String.h"
 
@@ -19,7 +18,7 @@ typedef struct
 	size_t column;
 } SourceLocation;
 
-always_inline SourceFile* SourceFile_Init_WithPath(SourceFile* self, const char* path)
+static SourceFile* SourceFile_Init_WithPath(SourceFile* self, const char* path)
 {
 	self->path = path;
 	self->content = File_ReadAllText(path);
@@ -31,7 +30,7 @@ always_inline SourceFile* SourceFile_Init_WithPath(SourceFile* self, const char*
 	return self;
 }
 
-always_inline void SourceFile_Fini(SourceFile* self)
+static void SourceFile_Fini(SourceFile* self)
 {
 	if (self->content)
 	{
@@ -40,7 +39,7 @@ always_inline void SourceFile_Fini(SourceFile* self)
 	}
 }
 
-always_inline SourceLocation SourceLocation_Create(const SourceFile* sourceFile,
+static SourceLocation SourceLocation_Create(const SourceFile* sourceFile,
                                                    const size_t offset,
                                                    const size_t length,
                                                    const size_t line,
@@ -55,7 +54,7 @@ always_inline SourceLocation SourceLocation_Create(const SourceFile* sourceFile,
 	};
 }
 
-always_inline SourceLocation SourceLocation_Concat(const SourceLocation* first, const SourceLocation* second)
+static SourceLocation SourceLocation_Concat(const SourceLocation* first, const SourceLocation* second)
 {
 	assert(first->sourceFile == second->sourceFile);
 

@@ -38,6 +38,7 @@ static bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocatio
 static Type* Parser_ParseType(const Parser* self)
 {
 	// TODO
+	(void)self;
 	return NULL;
 }
 

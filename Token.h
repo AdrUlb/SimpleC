@@ -123,7 +123,7 @@ typedef enum
 
 #undef X
 
-always_inline const char* Token_Type_ToString(const Token_Type type)
+static const char* Token_Type_ToString(const Token_Type type)
 {
 	switch (type)
 	{
@@ -324,7 +324,7 @@ typedef struct
 #undef LIST_TYPE
 #undef LIST_ELEMENT_TYPE
 
-always_inline Token Token_Create(const Token_Type type, const SourceLocation location, const Token_Data data)
+static Token Token_Create(const Token_Type type, const SourceLocation location, const Token_Data data)
 {
 	return (Token) {
 		.type = type,
@@ -333,5 +333,4 @@ always_inline Token Token_Create(const Token_Type type, const SourceLocation loc
 	};
 }
 
-ConstCharSpan Token_LiteralInteger_Get(const Token* token);
 void Token_Print(const Token* token);

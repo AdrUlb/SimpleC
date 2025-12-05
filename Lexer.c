@@ -3,27 +3,26 @@
 #include <ctype.h>
 
 #include "SourceFile.h"
-#include "Util/Macros.h"
 
 static char Lexer_PeekChar(const Lexer* self);
 static char Lexer_ConsumeChar(Lexer* self);
 
-always_inline bool IsDigit(const char c)
+static bool IsDigit(const char c)
 {
 	return c >= '0' && c <= '9';
 }
 
-always_inline bool IsBinaryDigit(const char c)
+static bool IsBinaryDigit(const char c)
 {
 	return c == '0' || c == '1';
 }
 
-always_inline bool IsOctalDigit(const char c)
+static bool IsOctalDigit(const char c)
 {
 	return c >= '0' && c <= '7';
 }
 
-always_inline bool IsHexDigit(const char c)
+static bool IsHexDigit(const char c)
 {
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }

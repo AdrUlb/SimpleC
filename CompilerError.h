@@ -13,7 +13,7 @@ typedef struct
 #undef LIST_TYPE
 #undef LIST_ELEMENT_TYPE
 
-always_inline CompilerError CompilerError_Create(const char* message, const SourceLocation location)
+static CompilerError CompilerError_Create(const char* message, const SourceLocation location)
 {
 	return (CompilerError) { message, location };
 }

@@ -1,24 +1,7 @@
 #pragma once
 
-#include "SourceFile.h"
 #include "Token.h"
-#include "Util/Macros.h"
-
-typedef struct
-{
-	SourceLocation location;
-} Type;
-
-always_inline Type* Type_Init(Type* self, const SourceLocation location)
-{
-	self->location = location;
-	return self;
-}
-
-always_inline void Type_Fini(const Type* self)
-{
-	(void)self;
-}
+#include "Type.h"
 
 #define EXPR_ENUM_VALUES \
 	X(EXPR_UNARY) \
@@ -106,7 +89,7 @@ typedef enum
 
 #undef X
 
-always_inline const char* Expression_Type_ToString(const Expression_Type type)
+static const char* Expression_Type_ToString(const Expression_Type type)
 {
 	switch (type)
 	{
@@ -118,7 +101,7 @@ always_inline const char* Expression_Type_ToString(const Expression_Type type)
 	}
 }
 
-always_inline const char* UnaryOperation_ToString(const UnaryOperation type)
+static const char* UnaryOperation_ToString(const UnaryOperation type)
 {
 	switch (type)
 	{
@@ -130,7 +113,7 @@ always_inline const char* UnaryOperation_ToString(const UnaryOperation type)
 	}
 }
 
-always_inline const char* BinaryOperation_ToString(const BinaryOperation type)
+static const char* BinaryOperation_ToString(const BinaryOperation type)
 {
 	switch (type)
 	{
@@ -142,7 +125,7 @@ always_inline const char* BinaryOperation_ToString(const BinaryOperation type)
 	}
 }
 
-always_inline const char* TernaryOperation_ToString(const TernaryOperation type)
+static const char* TernaryOperation_ToString(const TernaryOperation type)
 {
 	switch (type)
 	{
@@ -334,11 +317,4 @@ static void Expression_Fini(const Expression* self)
 		default:
 			break;
 	}
-}
-
-always_inline bool Expression_IsLValue(const Expression* self)
-{
-	// TODO: implement properly
-	(void)self;
-	return true;
 }
