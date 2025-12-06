@@ -18,7 +18,7 @@ static AstPrinter AstPrinter_Create(void)
 	return printer;
 }
 
-static void AstPrinter_Destroy(const AstPrinter* self)
+static void AstPrinter_Fini(const AstPrinter* self)
 {
 	String_Fini(&self->output);
 }
@@ -228,7 +228,7 @@ static void Parse(const SourceFile* source, CompilerErrorList* errorList)
 		AstPrinter printer = AstPrinter_Create();
 		AstPrinter_PrintExpression(&printer, expr);
 		printf("%s\n", String_AsCString(&printer.output));
-		AstPrinter_Destroy(&printer);
+		AstPrinter_Fini(&printer);
 	}
 }
 
