@@ -4,8 +4,8 @@
 
 #include "Util/Managed.h"
 
-static Expression* Parser_ParseCastExpression(Parser* self);
-static Expression* Parser_ParseAssignmentExpression(Parser* self);
+static AstExpression* Parser_ParseCastExpression(Parser* self);
+static AstExpression* Parser_ParseAssignmentExpression(Parser* self);
 
 static Token* Parser_PeekToken(const Parser* self)
 {
@@ -35,14 +35,149 @@ static bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocatio
 	return true;
 }
 
-static Type* Parser_ParseType(const Parser* self)
+static bool Parser_ParseSpecifierQualifierList(Parser* self, AstSpecifierList** outSpecifiers, AstQualifierList** outQualifiers, SourceLocation* outLocation)
 {
-	// TODO
-	(void)self;
-	return NULL;
+	// specifier-qualifier-list
+	AstSpecifierList* specifiers = New(AstSpecifierList);
+	AstQualifierList* qualifiers = New(AstQualifierList);
+
+	*outSpecifiers = specifiers;
+	*outQualifiers = qualifiers;
+
+	SourceLocation locationStart = { 0 };
+	SourceLocation locationEnd = { 0 };
+
+	while (true)
+	{
+		const Token* token = Parser_PeekToken(self);
+		if (token == NULL)
+			return NULL;
+
+		AstType_Specifier_Type specifierType;
+		switch (token->type)
+		{
+			case TOKEN_KEYWORD_VOID:
+				specifierType = AST_SPECIFIER_VOID;
+				break;
+			case TOKEN_KEYWORD_CHAR:
+				specifierType = AST_SPECIFIER_CHAR;
+				break;
+			case TOKEN_KEYWORD_SHORT:
+				specifierType = AST_SPECIFIER_SHORT;
+				break;
+			case TOKEN_KEYWORD_INT:
+				specifierType = AST_SPECIFIER_INT;
+				break;
+			case TOKEN_KEYWORD_LONG:
+				specifierType = AST_SPECIFIER_LONG;
+				break;
+			case TOKEN_KEYWORD_FLOAT:
+				specifierType = AST_SPECIFIER_FLOAT;
+				break;
+			case TOKEN_KEYWORD_DOUBLE:
+				specifierType = AST_SPECIFIER_DOUBLE;
+				break;
+			case TOKEN_KEYWORD_SIGNED:
+				specifierType = AST_SPECIFIER_SIGNED;
+				break;
+			case TOKEN_KEYWORD_UNSIGNED:
+				specifierType = AST_SPECIFIER_UNSIGNED;
+				break;
+			case TOKEN_KEYWORD_STRUCT:
+				specifierType = AST_SPECIFIER_STRUCT;
+				break;
+			case TOKEN_KEYWORD_UNION:
+				specifierType = AST_SPECIFIER_UNION;
+				break;
+			case TOKEN_KEYWORD_ENUM:
+				specifierType = AST_SPECIFIER_ENUM;
+				break;
+			default:
+				// TODO: check if identifier is a typedef-name
+				specifierType = AST_SPECIFIER_NONE;
+				break;
+		}
+
+		if (specifierType == AST_SPECIFIER_STRUCT ||
+		    specifierType == AST_SPECIFIER_UNION ||
+		    specifierType == AST_SPECIFIER_ENUM)
+		{
+			// TODO: struct-or-union-specifier or enum-specifier
+			abort();
+		}
+
+		if (specifierType != AST_SPECIFIER_NONE)
+		{
+			if (!locationStart.sourceFile)
+				locationStart = token->location;
+
+			locationEnd = token->location;
+
+			Parser_ConsumeToken(self);
+			AstSpecifierList_Append(specifiers, NewWith(AstSpecifier, Args, specifierType));
+		}
+
+		AstQualifier_Type qualifierType;
+		switch (token->type)
+		{
+			case TOKEN_KEYWORD_CONST:
+				qualifierType = AST_QUALIFIER_CONST;
+				break;
+			case TOKEN_KEYWORD_VOLATILE:
+				qualifierType = AST_QUALIFIER_VOLATILE;
+				break;
+			case TOKEN_KEYWORD_RESTRICT:
+				qualifierType = AST_QUALIFIER_RESTRICT;
+				break;
+			default:
+				qualifierType = AST_QUALIFIER_NONE;
+				break;
+		}
+
+		if (qualifierType != AST_QUALIFIER_NONE)
+		{
+			if (!locationStart.sourceFile)
+				locationStart = token->location;
+
+			locationEnd = token->location;
+
+			Parser_ConsumeToken(self);
+			AstQualifierList_Append(qualifiers, NewWith(AstQualifier, Args, qualifierType));
+		}
+
+		// TODO: alignment specifiers
+
+		if (specifierType == AST_SPECIFIER_NONE && qualifierType == AST_QUALIFIER_NONE)
+			break;
+	}
+
+	if (specifiers->size == 0 && qualifiers->size == 0)
+	{
+		Release(specifiers);
+		Release(qualifiers);
+		return false;
+	}
+
+	*outLocation = SourceLocation_Concat(&locationStart, &locationEnd);
+	return true;
 }
 
-static Expression* Parser_ParsePrimaryExpression(Parser* self)
+static AstTypeName* Parser_TryParseTypeName(Parser* self) // type-name
+{
+	// specifier-qualifier-list
+	AstSpecifierList* specifiers;
+	AstQualifierList* qualifiers;
+	SourceLocation specifierQualifierLocation = { 0 };
+
+	if (!Parser_ParseSpecifierQualifierList(self, &specifiers, &qualifiers, &specifierQualifierLocation))
+		return NULL;
+
+	// TODO: optional abstract-declarator
+
+	return NewWith(AstTypeName, Args, specifiers, qualifiers, specifierQualifierLocation);
+}
+
+static AstExpression* Parser_ParsePrimaryExpression(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
 	if (token == NULL)
@@ -53,7 +188,7 @@ static Expression* Parser_ParsePrimaryExpression(Parser* self)
 		// Parenthesized expression
 		Parser_ConsumeToken(self);
 
-		Expression* expr = Parser_ParseExpression(self);
+		AstExpression* expr = Parser_ParseExpression(self);
 		if (!expr)
 			return NULL;
 
@@ -74,35 +209,36 @@ static Expression* Parser_ParsePrimaryExpression(Parser* self)
 	{
 		Parser_ConsumeToken(self);
 
-		return NewWith(Expression, Primary,
-		               (PrimaryExpression){ *token },
+		return NewWith(AstExpression, Primary,
+		               (AstPrimaryExpression){ *token },
 		               token->location);
 	}
 
 	return NULL;
 }
 
-static Expression* Parser_ParsePostfixExpression(Parser* self)
+static AstExpression* Parser_ParsePostfixExpression(Parser* self)
 {
 	const size_t savedTokenIndex = self->currentTokenIndex;
 
-	Expression* expression = NULL;
+	AstExpression* expression = NULL;
 	if (true)
 	{
 		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENOPEN, NULL))
 			goto primary;
 
-		const Type* type = Parser_ParseType(self);
+		const AstTypeName* type = Parser_TryParseTypeName(self);
 		if (!type)
 			goto primary;
 
-		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL))
+		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL) || !Parser_MatchToken(self, TOKEN_PUNCTUATOR_BRACEOPEN, NULL))
+		{
+			Release(type);
 			goto primary;
-
-		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_BRACEOPEN, NULL))
-			goto primary;
+		}
 
 		// TOOD: initializer list
+		abort();
 	}
 	else
 	{
@@ -124,7 +260,7 @@ static Expression* Parser_ParsePostfixExpression(Parser* self)
 		{
 			// Subscript expression
 			Parser_ConsumeToken(self);
-			Expression* indexExpr = Parser_ParseExpression(self);
+			AstExpression* indexExpr = Parser_ParseExpression(self);
 			if (!indexExpr)
 				return NULL;
 
@@ -134,8 +270,8 @@ static Expression* Parser_ParsePostfixExpression(Parser* self)
 				return NULL;
 			}
 
-			expression = NewWith(Expression, Binary,
-			                     (BinaryExpression){ BINOP_SUBSCRIPT, expression, indexExpr },
+			expression = NewWith(AstExpression, Binary,
+			                     (AstBinaryExpression){ AST_BINOP_SUBSCRIPT, expression, indexExpr },
 			                     SourceLocation_Concat(&expression->location, &indexExpr->location));
 			continue;
 		}
@@ -156,8 +292,8 @@ static Expression* Parser_ParsePostfixExpression(Parser* self)
 
 			Parser_ConsumeToken(self);
 
-			expression = NewWith(Expression, MemberAccess,
-			                     (MemberAccessExpression){ expression, indentifier->data.literalIdentifier.value,
+			expression = NewWith(AstExpression, MemberAccess,
+			                     (AstMemberAccessExpression){ expression, indentifier->data.literalIdentifier.value,
 			                     token->type == TOKEN_PUNCTUATOR_MINUS_GREATER },
 			                     SourceLocation_Concat(&expression->location, &indentifier->location));
 			continue;
@@ -168,10 +304,10 @@ static Expression* Parser_ParsePostfixExpression(Parser* self)
 			// Postfix increment/decrement
 			Parser_ConsumeToken(self);
 
-			const UnaryOperation op = (token->type == TOKEN_PUNCTUATOR_PLUS_PLUS) ? UNOP_POST_INCREMENT : UNOP_POST_DECREMENT;
+			const AstUnaryOperation op = (token->type == TOKEN_PUNCTUATOR_PLUS_PLUS) ? AST_UNOP_POST_INCREMENT : AST_UNOP_POST_DECREMENT;
 
-			expression = NewWith(Expression, Unary,
-			                     (UnaryExpression){ op, expression },
+			expression = NewWith(AstExpression, Unary,
+			                     (AstUnaryExpression){ op, expression },
 			                     SourceLocation_Concat(&expression->location, &token->location));
 			continue;
 		}
@@ -181,17 +317,17 @@ static Expression* Parser_ParsePostfixExpression(Parser* self)
 			// Function call
 			Parser_ConsumeToken(self);
 
-			using ExpressionList* args = New(ExpressionList);
+			using AstExpressionList* args = New(AstExpressionList);
 			while (true)
 			{
 				if (Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL))
 					break;
 
-				Expression* argExpr = Parser_ParseAssignmentExpression(self);
+				AstExpression* argExpr = Parser_ParseAssignmentExpression(self);
 				if (!argExpr)
 					return NULL;
 
-				ExpressionList_Append(args, argExpr);
+				AstExpressionList_Append(args, argExpr);
 
 				if (Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL))
 					break;
@@ -203,8 +339,8 @@ static Expression* Parser_ParsePostfixExpression(Parser* self)
 				}
 			}
 
-			expression = NewWith(Expression, Call,
-			                     (CallExpression){ expression, Retain(args) },
+			expression = NewWith(AstExpression, Call,
+			                     (AstCallExpression){ expression, Retain(args) },
 			                     SourceLocation_Concat(&expression->location, &token->location));
 			continue;
 		}
@@ -214,7 +350,7 @@ static Expression* Parser_ParsePostfixExpression(Parser* self)
 	return expression;
 }
 
-static Expression* Parser_ParseUnaryExpression(Parser* self)
+static AstExpression* Parser_ParseUnaryExpression(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
 	if (token == NULL)
@@ -228,91 +364,92 @@ static Expression* Parser_ParseUnaryExpression(Parser* self)
 		// sizeof(<type>)
 		if (Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENOPEN, NULL))
 		{
-			Type* type = Parser_ParseType(self);
+			AstTypeName* type = Parser_TryParseTypeName(self);
 			if (!type)
 				return NULL;
 
 			if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL))
 			{
 				CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_ExpectedClosingParenthesisInSizeofTypeExpression, type->location));
+				Release(type);
 				return NULL;
 			}
 
-			return NewWith(Expression, SizeofType,
-			               (SizeofTypeExpression){ type },
+			return NewWith(AstExpression, SizeofType,
+			               (AstSizeofTypeExpression){ type },
 			               SourceLocation_Concat(&token->location, &type->location));
 		}
 
 		// sizeof <expression>
-		Expression* expr = Parser_ParseUnaryExpression(self);
+		AstExpression* expr = Parser_ParseUnaryExpression(self);
 		if (!expr)
 			return NULL;
 
-		return NewWith(Expression, Unary,
-		               (UnaryExpression){ UNOP_SIZEOF, expr },
+		return NewWith(AstExpression, Unary,
+		               (AstUnaryExpression){ AST_UNOP_SIZEOF, expr },
 		               SourceLocation_Concat(&token->location, &expr->location));
 	}
 
 	// Prefix expressions
-	UnaryOperation op;
+	AstUnaryOperation op;
 	switch (token->type)
 	{
 		case TOKEN_PUNCTUATOR_AMPERSAND:
-			op = UNOP_ADDRESS_OF;
+			op = AST_UNOP_ADDRESS_OF;
 			break;
 		case TOKEN_PUNCTUATOR_ASTERISK:
-			op = UNOP_DEREFERENCE;
+			op = AST_UNOP_DEREFERENCE;
 			break;
 		case TOKEN_PUNCTUATOR_PLUS:
-			op = UNOP_PLUS;
+			op = AST_UNOP_PLUS;
 			break;
 		case TOKEN_PUNCTUATOR_MINUS:
-			op = UNOP_MINUS;
+			op = AST_UNOP_MINUS;
 			break;
 		case TOKEN_PUNCTUATOR_TILDE:
-			op = UNOP_BITWISE_NOT;
+			op = AST_UNOP_BITWISE_NOT;
 			break;
 		case TOKEN_PUNCTUATOR_EXCLAMATION:
-			op = UNOP_LOGICAL_NOT;
+			op = AST_UNOP_LOGICAL_NOT;
 			break;
 		case TOKEN_PUNCTUATOR_PLUS_PLUS:
-			op = UNOP_PRE_INCREMENT;
+			op = AST_UNOP_PRE_INCREMENT;
 			break;
 		case TOKEN_PUNCTUATOR_MINUS_MINUS:
-			op = UNOP_PRE_DECREMENT;
+			op = AST_UNOP_PRE_DECREMENT;
 			break;
 		default:
-			op = UNOP_NONE;
+			op = AST_UNOP_NONE;
 	}
 
-	if (op == UNOP_PRE_INCREMENT || op == UNOP_PRE_DECREMENT)
+	if (op == AST_UNOP_PRE_INCREMENT || op == AST_UNOP_PRE_DECREMENT)
 	{
 		Parser_ConsumeToken(self);
-		Expression* expr = Parser_ParseUnaryExpression(self);
+		AstExpression* expr = Parser_ParseUnaryExpression(self);
 		if (!expr)
 			return NULL;
 
-		return NewWith(Expression, Unary,
-		               (UnaryExpression){ op, expr },
+		return NewWith(AstExpression, Unary,
+		               (AstUnaryExpression){ op, expr },
 		               SourceLocation_Concat(&token->location, &expr->location));
 	}
 
-	if (op != UNOP_NONE)
+	if (op != AST_UNOP_NONE)
 	{
 		Parser_ConsumeToken(self);
-		Expression* expr = Parser_ParseCastExpression(self);
+		AstExpression* expr = Parser_ParseCastExpression(self);
 		if (!expr)
 			return NULL;
 
-		return NewWith(Expression, Unary,
-		               (UnaryExpression){ op, expr },
+		return NewWith(AstExpression, Unary,
+		               (AstUnaryExpression){ op, expr },
 		               SourceLocation_Concat(&token->location, &expr->location));
 	}
 
 	return Parser_ParsePostfixExpression(self);
 }
 
-Expression* Parser_ParseCastExpression(Parser* self)
+AstExpression* Parser_ParseCastExpression(Parser* self)
 {
 	const size_t savedTokenIndex = self->currentTokenIndex;
 
@@ -320,7 +457,7 @@ Expression* Parser_ParseCastExpression(Parser* self)
 	if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENOPEN, &startLocation))
 		return Parser_ParseUnaryExpression(self);
 
-	Type* type = Parser_ParseType(self);
+	AstTypeName* type = Parser_TryParseTypeName(self);
 	if (!type)
 	{
 		// Not a cast expression, rewind and parse as unary expression
@@ -331,16 +468,22 @@ Expression* Parser_ParseCastExpression(Parser* self)
 	if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL))
 	{
 		CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_ExpectedClosingParenthesisInCastExpression, type->location));
+		Release(type);
 		return NULL;
 	}
 
-	Expression* expr = Parser_ParseCastExpression(self);
-	return NewWith(Expression, Cast, (CastExpression){ type, expr }, SourceLocation_Concat(&startLocation, &expr->location));
+	AstExpression* expr = Parser_ParseCastExpression(self);
+	if (!expr)
+	{
+		Release(type);
+		return NULL;
+	}
+	return NewWith(AstExpression, Cast, (AstCastExpression){ type, expr }, SourceLocation_Concat(&startLocation, &expr->location));
 }
 
-static Expression* Parser_ParseMultiplicativeExpression(Parser* self)
+static AstExpression* Parser_ParseMultiplicativeExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseCastExpression(self);
+	AstExpression* lhs = Parser_ParseCastExpression(self);
 	if (!lhs)
 		return NULL;
 
@@ -350,39 +493,39 @@ static Expression* Parser_ParseMultiplicativeExpression(Parser* self)
 		if (token == NULL)
 			break;
 
-		BinaryOperation op;
+		AstBinaryOperation op;
 		switch (token->type)
 		{
 			case TOKEN_PUNCTUATOR_ASTERISK:
-				op = BINOP_MULTIPLY;
+				op = AST_BINOP_MULTIPLY;
 				break;
 			case TOKEN_PUNCTUATOR_SLASH:
-				op = BINOP_DIVIDE;
+				op = AST_BINOP_DIVIDE;
 				break;
 			case TOKEN_PUNCTUATOR_PERCENT:
-				op = BINOP_MODULO;
+				op = AST_BINOP_MODULO;
 				break;
 			default:
-				op = BINOP_NONE;
+				op = AST_BINOP_NONE;
 		}
 
-		if (op == BINOP_NONE)
+		if (op == AST_BINOP_NONE)
 			break;
 
 		Parser_ConsumeToken(self);
-		Expression* rhs = Parser_ParseCastExpression(self);
+		AstExpression* rhs = Parser_ParseCastExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseAdditiveExpression(Parser* self)
+static AstExpression* Parser_ParseAdditiveExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseMultiplicativeExpression(self);
+	AstExpression* lhs = Parser_ParseMultiplicativeExpression(self);
 	if (!lhs)
 		return NULL;
 
@@ -392,36 +535,36 @@ static Expression* Parser_ParseAdditiveExpression(Parser* self)
 		if (token == NULL)
 			break;
 
-		BinaryOperation op;
+		AstBinaryOperation op;
 		switch (token->type)
 		{
 			case TOKEN_PUNCTUATOR_PLUS:
-				op = BINOP_ADD;
+				op = AST_BINOP_ADD;
 				break;
 			case TOKEN_PUNCTUATOR_MINUS:
-				op = BINOP_SUBTRACT;
+				op = AST_BINOP_SUBTRACT;
 				break;
 			default:
-				op = BINOP_NONE;
+				op = AST_BINOP_NONE;
 		}
 
-		if (op == BINOP_NONE)
+		if (op == AST_BINOP_NONE)
 			break;
 
 		Parser_ConsumeToken(self);
-		Expression* rhs = Parser_ParseMultiplicativeExpression(self);
+		AstExpression* rhs = Parser_ParseMultiplicativeExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseShiftExpression(Parser* self)
+static AstExpression* Parser_ParseShiftExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseAdditiveExpression(self);
+	AstExpression* lhs = Parser_ParseAdditiveExpression(self);
 	if (!lhs)
 		return NULL;
 
@@ -431,36 +574,36 @@ static Expression* Parser_ParseShiftExpression(Parser* self)
 		if (token == NULL)
 			break;
 
-		BinaryOperation op;
+		AstBinaryOperation op;
 		switch (token->type)
 		{
 			case TOKEN_PUNCTUATOR_LESS_LESS:
-				op = BINOP_SHIFT_LEFT;
+				op = AST_BINOP_SHIFT_LEFT;
 				break;
 			case TOKEN_PUNCTUATOR_GREATER_GREATER:
-				op = BINOP_SHIFT_RIGHT;
+				op = AST_BINOP_SHIFT_RIGHT;
 				break;
 			default:
-				op = BINOP_NONE;
+				op = AST_BINOP_NONE;
 		}
 
-		if (op == BINOP_NONE)
+		if (op == AST_BINOP_NONE)
 			break;
 
 		Parser_ConsumeToken(self);
-		Expression* rhs = Parser_ParseAdditiveExpression(self);
+		AstExpression* rhs = Parser_ParseAdditiveExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseRelationalExpression(Parser* self)
+static AstExpression* Parser_ParseRelationalExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseShiftExpression(self);
+	AstExpression* lhs = Parser_ParseShiftExpression(self);
 	if (!lhs)
 		return NULL;
 
@@ -470,42 +613,42 @@ static Expression* Parser_ParseRelationalExpression(Parser* self)
 		if (token == NULL)
 			break;
 
-		BinaryOperation op;
+		AstBinaryOperation op;
 		switch (token->type)
 		{
 			case TOKEN_PUNCTUATOR_LESS:
-				op = BINOP_TEST_LESS;
+				op = AST_BINOP_TEST_LESS;
 				break;
 			case TOKEN_PUNCTUATOR_GREATER:
-				op = BINOP_TEST_GREATER;
+				op = AST_BINOP_TEST_GREATER;
 				break;
 			case TOKEN_PUNCTUATOR_LESS_EQUAL:
-				op = BINOP_TEST_LESS_EQUAL;
+				op = AST_BINOP_TEST_LESS_EQUAL;
 				break;
 			case TOKEN_PUNCTUATOR_GREATER_EQUAL:
-				op = BINOP_TEST_GREATER_EQUAL;
+				op = AST_BINOP_TEST_GREATER_EQUAL;
 				break;
 			default:
-				op = BINOP_NONE;
+				op = AST_BINOP_NONE;
 		}
 
-		if (op == BINOP_NONE)
+		if (op == AST_BINOP_NONE)
 			break;
 
 		Parser_ConsumeToken(self);
-		Expression* rhs = Parser_ParseShiftExpression(self);
+		AstExpression* rhs = Parser_ParseShiftExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseEqualityExpression(Parser* self)
+static AstExpression* Parser_ParseEqualityExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseRelationalExpression(self);
+	AstExpression* lhs = Parser_ParseRelationalExpression(self);
 	if (!lhs)
 		return NULL;
 
@@ -515,132 +658,132 @@ static Expression* Parser_ParseEqualityExpression(Parser* self)
 		if (token == NULL)
 			break;
 
-		BinaryOperation op;
+		AstBinaryOperation op;
 		switch (token->type)
 		{
 			case TOKEN_PUNCTUATOR_EQUAL_EQUAL:
-				op = BINOP_TEST_EQUAL;
+				op = AST_BINOP_TEST_EQUAL;
 				break;
 			case TOKEN_PUNCTUATOR_EXCLAMATION_EQUAL:
-				op = BINOP_TEST_NOT_EQUAL;
+				op = AST_BINOP_TEST_NOT_EQUAL;
 				break;
 			default:
-				op = BINOP_NONE;
+				op = AST_BINOP_NONE;
 		}
 
-		if (op == BINOP_NONE)
+		if (op == AST_BINOP_NONE)
 			break;
 
 		Parser_ConsumeToken(self);
-		Expression* rhs = Parser_ParseRelationalExpression(self);
+		AstExpression* rhs = Parser_ParseRelationalExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ op, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseBitwiseAndExpression(Parser* self)
+static AstExpression* Parser_ParseBitwiseAndExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseEqualityExpression(self);
+	AstExpression* lhs = Parser_ParseEqualityExpression(self);
 	if (!lhs)
 		return NULL;
 
 	while (Parser_MatchToken(self, TOKEN_PUNCTUATOR_AMPERSAND, NULL))
 	{
-		Expression* rhs = Parser_ParseEqualityExpression(self);
+		AstExpression* rhs = Parser_ParseEqualityExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ BINOP_BITWISE_AND, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ AST_BINOP_BITWISE_AND, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseBitwiseXorExpression(Parser* self)
+static AstExpression* Parser_ParseBitwiseXorExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseBitwiseAndExpression(self);
+	AstExpression* lhs = Parser_ParseBitwiseAndExpression(self);
 	if (!lhs)
 		return NULL;
 
 	while (Parser_MatchToken(self, TOKEN_PUNCTUATOR_CARET, NULL))
 	{
-		Expression* rhs = Parser_ParseBitwiseAndExpression(self);
+		AstExpression* rhs = Parser_ParseBitwiseAndExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ BINOP_BITWISE_XOR, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ AST_BINOP_BITWISE_XOR, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseBitwiseOrExpression(Parser* self)
+static AstExpression* Parser_ParseBitwiseOrExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseBitwiseXorExpression(self);
+	AstExpression* lhs = Parser_ParseBitwiseXorExpression(self);
 	if (!lhs)
 		return NULL;
 
 	while (Parser_MatchToken(self, TOKEN_PUNCTUATOR_PIPE, NULL))
 	{
-		Expression* rhs = Parser_ParseBitwiseXorExpression(self);
+		AstExpression* rhs = Parser_ParseBitwiseXorExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ BINOP_BITWISE_OR, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ AST_BINOP_BITWISE_OR, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseLogicalAndExpression(Parser* self)
+static AstExpression* Parser_ParseLogicalAndExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseBitwiseOrExpression(self);
+	AstExpression* lhs = Parser_ParseBitwiseOrExpression(self);
 	if (!lhs)
 		return NULL;
 
 	while (Parser_MatchToken(self, TOKEN_PUNCTUATOR_AMPERSAND_AMPERSAND, NULL))
 	{
-		Expression* rhs = Parser_ParseBitwiseOrExpression(self);
+		AstExpression* rhs = Parser_ParseBitwiseOrExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ BINOP_LOGICAL_AND, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ AST_BINOP_LOGICAL_AND, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseLogicalOrExpression(Parser* self)
+static AstExpression* Parser_ParseLogicalOrExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseLogicalAndExpression(self);
+	AstExpression* lhs = Parser_ParseLogicalAndExpression(self);
 	if (!lhs)
 		return NULL;
 
 	while (Parser_MatchToken(self, TOKEN_PUNCTUATOR_PIPE_PIPE, NULL))
 	{
-		Expression* rhs = Parser_ParseLogicalAndExpression(self);
+		AstExpression* rhs = Parser_ParseLogicalAndExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ BINOP_LOGICAL_OR, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ AST_BINOP_LOGICAL_OR, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;
 }
 
-static Expression* Parser_ParseConditionalExpression(Parser* self)
+static AstExpression* Parser_ParseConditionalExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseLogicalOrExpression(self);
+	AstExpression* lhs = Parser_ParseLogicalOrExpression(self);
 	if (!lhs)
 		return NULL;
 
 	while (Parser_MatchToken(self, TOKEN_PUNCTUATOR_QUESTION, NULL))
 	{
-		Expression* ifTrue = Parser_ParseExpression(self);
+		AstExpression* ifTrue = Parser_ParseExpression(self);
 		if (!ifTrue)
 			break;
 
@@ -650,68 +793,68 @@ static Expression* Parser_ParseConditionalExpression(Parser* self)
 			break;
 		}
 
-		Expression* ifFalse = Parser_ParseConditionalExpression(self);
+		AstExpression* ifFalse = Parser_ParseConditionalExpression(self);
 		if (!ifFalse)
 			break;
 
-		lhs = NewWith(Expression, Ternary,
-		              (TernaryExpression){ TERNOP_CONDITIONAL, lhs, ifTrue, ifFalse },
+		lhs = NewWith(AstExpression, Ternary,
+		              (AstTernaryExpression){ AST_TERNOP_CONDITIONAL, lhs, ifTrue, ifFalse },
 		              SourceLocation_Concat(&lhs->location, &ifFalse->location));
 	}
 
 	return lhs;
 }
 
-Expression* Parser_ParseAssignmentExpression(Parser* self)
+AstExpression* Parser_ParseAssignmentExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseConditionalExpression(self);
+	AstExpression* lhs = Parser_ParseConditionalExpression(self);
 	if (!lhs)
 		return NULL;
 
 	const Token* token = Parser_PeekToken(self);
 	if (token != NULL)
 	{
-		BinaryOperation op;
+		AstBinaryOperation op;
 		switch (token->type)
 		{
 			case TOKEN_PUNCTUATOR_EQUAL:
-				op = BINOP_ASSIGN;
+				op = AST_BINOP_ASSIGN;
 				break;
 			case TOKEN_PUNCTUATOR_ASTERISK_EQUAL:
-				op = BINOP_ASSIGN_MULTIPLY;
+				op = AST_BINOP_ASSIGN_MULTIPLY;
 				break;
 			case TOKEN_PUNCTUATOR_SLASH_EQUAL:
-				op = BINOP_ASSIGN_DIVIDE;
+				op = AST_BINOP_ASSIGN_DIVIDE;
 				break;
 			case TOKEN_PUNCTUATOR_PERCENT_EQUAL:
-				op = BINOP_ASSIGN_MODULO;
+				op = AST_BINOP_ASSIGN_MODULO;
 				break;
 			case TOKEN_PUNCTUATOR_PLUS_EQUAL:
-				op = BINOP_ASSIGN_ADD;
+				op = AST_BINOP_ASSIGN_ADD;
 				break;
 			case TOKEN_PUNCTUATOR_MINUS_EQUAL:
-				op = BINOP_ASSIGN_SUBTRACT;
+				op = AST_BINOP_ASSIGN_SUBTRACT;
 				break;
 			case TOKEN_PUNCTUATOR_LESS_LESS_EQUAL:
-				op = BINOP_ASSIGN_LEFT_SHIFT;
+				op = AST_BINOP_ASSIGN_LEFT_SHIFT;
 				break;
 			case TOKEN_PUNCTUATOR_GREATER_GREATER_EQUAL:
-				op = BINOP_ASSIGN_RIGHT_SHIFT;
+				op = AST_BINOP_ASSIGN_RIGHT_SHIFT;
 				break;
 			case TOKEN_PUNCTUATOR_AMPERSAND_EQUAL:
-				op = BINOP_ASSIGN_AND;
+				op = AST_BINOP_ASSIGN_AND;
 				break;
 			case TOKEN_PUNCTUATOR_CARET_EQUAL:
-				op = BINOP_ASSIGN_XOR;
+				op = AST_BINOP_ASSIGN_XOR;
 				break;
 			case TOKEN_PUNCTUATOR_PIPE_EQUAL:
-				op = BINOP_ASSIGN_OR;
+				op = AST_BINOP_ASSIGN_OR;
 				break;
 			default:
-				op = BINOP_NONE;
+				op = AST_BINOP_NONE;
 		}
 
-		if (op != BINOP_NONE)
+		if (op != AST_BINOP_NONE)
 		{
 			/* TODO: FIXME
 			if (!Expression_IsLValue(lhs))
@@ -719,12 +862,12 @@ Expression* Parser_ParseAssignmentExpression(Parser* self)
 			*/
 
 			Parser_ConsumeToken(self);
-			Expression* rhs = Parser_ParseAssignmentExpression(self);
+			AstExpression* rhs = Parser_ParseAssignmentExpression(self);
 			if (!rhs)
 				return lhs;
 
-			lhs = NewWith(Expression, Binary,
-			              (BinaryExpression){ op, lhs, rhs },
+			lhs = NewWith(AstExpression, Binary,
+			              (AstBinaryExpression){ op, lhs, rhs },
 			              SourceLocation_Concat(&lhs->location, &rhs->location));
 		}
 	}
@@ -732,19 +875,19 @@ Expression* Parser_ParseAssignmentExpression(Parser* self)
 	return lhs;
 }
 
-Expression* Parser_ParseExpression(Parser* self)
+AstExpression* Parser_ParseExpression(Parser* self)
 {
-	Expression* lhs = Parser_ParseAssignmentExpression(self);
+	AstExpression* lhs = Parser_ParseAssignmentExpression(self);
 	if (!lhs)
 		return NULL;
 
 	while (Parser_MatchToken(self, TOKEN_PUNCTUATOR_COMMA, NULL))
 	{
-		Expression* rhs = Parser_ParseAssignmentExpression(self);
+		AstExpression* rhs = Parser_ParseAssignmentExpression(self);
 		if (!rhs)
 			return lhs;
 
-		lhs = NewWith(Expression, Binary, (BinaryExpression){ BINOP_COMMA, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
+		lhs = NewWith(AstExpression, Binary, (AstBinaryExpression){ AST_BINOP_COMMA, lhs, rhs }, SourceLocation_Concat(&lhs->location, &rhs->location));
 	}
 
 	return lhs;

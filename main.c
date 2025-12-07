@@ -31,17 +31,36 @@ static void AstPrinter_PrintIndentation(AstPrinter* self)
 
 typedef int a;
 
-static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
+static void AstPrinter_PrintTypeName(AstPrinter* self, const AstTypeName* type)
+{
+	for (size_t i = 0; i < type->qualifiers->size; i++)
+	{
+		const AstQualifier* qualifier = type->qualifiers->data[i];
+		String_AppendCString(&self->output, AstType_Qualifier_Type_ToString(qualifier->type));
+		if (i < type->qualifiers->size - 1 || type->specifiers->size > 0)
+			String_AppendChar(&self->output, ' ');
+	}
+
+	for (size_t i = 0; i < type->specifiers->size; i++)
+	{
+		const AstSpecifier* specifier = type->specifiers->data[i];
+		String_AppendCString(&self->output, AstType_Specifier_Type_ToString(specifier->type));
+		if (i < type->specifiers->size - 1)
+			String_AppendChar(&self->output, ' ');
+	}
+}
+
+static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* expr)
 {
 	switch (expr->type)
 	{
-		case EXPR_UNARY:
+		case AST_EXPR_UNARY:
 			String_AppendCString(&self->output, "(Unary Expression) {\n");
 			self->indent++;
 
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "Operation: ");
-			String_AppendCString(&self->output, UnaryOperation_ToString(expr->data.unary.operation));
+			String_AppendCString(&self->output, AstUnaryOperation_ToString(expr->data.unary.operation));
 			String_AppendCString(&self->output, ",\n");
 
 			AstPrinter_PrintIndentation(self);
@@ -53,13 +72,13 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
-		case EXPR_BINARY:
+		case AST_EXPR_BINARY:
 			String_AppendCString(&self->output, "(Binary Expression) {\n");
 			self->indent++;
 
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "Operation: ");
-			String_AppendCString(&self->output, BinaryOperation_ToString(expr->data.binary.operation));
+			String_AppendCString(&self->output, AstBinaryOperation_ToString(expr->data.binary.operation));
 			String_AppendCString(&self->output, ",\n");
 
 			AstPrinter_PrintIndentation(self);
@@ -76,13 +95,13 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
-		case EXPR_TERNARY:
+		case AST_EXPR_TERNARY:
 			String_AppendCString(&self->output, "(Ternary Expression) {\n");
 			self->indent++;
 
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "Operation: ");
-			String_AppendCString(&self->output, TernaryOperation_ToString(expr->data.ternary.operation));
+			String_AppendCString(&self->output, AstTernaryOperation_ToString(expr->data.ternary.operation));
 			String_AppendCString(&self->output, ",\n");
 
 			AstPrinter_PrintIndentation(self);
@@ -104,7 +123,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
-		case EXPR_CAST:
+		case AST_EXPR_CAST:
 			String_AppendCString(&self->output, "(Cast Expression) {\n");
 			self->indent++;
 
@@ -115,18 +134,20 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
-		case EXPR_SIZEOF_TYPE:
-			String_AppendCString(&self->output, "(Sizeof Expression) {\n");
+		case AST_EXPR_SIZEOF_TYPE:
+			String_AppendCString(&self->output, "(Sizeof Type Expression) {\n");
 			self->indent++;
 
 			AstPrinter_PrintIndentation(self);
-			String_AppendCString(&self->output, "TODO!\n");
+			String_AppendCString(&self->output, "Type: ");
+			AstPrinter_PrintTypeName(self, expr->data.sizeofType.type);
+			String_AppendChar(&self->output, '\n');
 
 			self->indent--;
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
-		case EXPR_MEMBER_ACCESS:
+		case AST_EXPR_MEMBER_ACCESS:
 			String_AppendCString(&self->output, "(Member Access Expression) {\n");
 			self->indent++;
 
@@ -137,7 +158,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
-		case EXPR_CALL:
+		case AST_EXPR_CALL:
 			String_AppendCString(&self->output, "(Call Expression) {\n");
 			self->indent++;
 
@@ -160,7 +181,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
-		case EXPR_PRIMARY:
+		case AST_EXPR_PRIMARY:
 		{
 			String_AppendCString(&self->output, "(Primary Expression) {\n");
 			self->indent++;
@@ -171,24 +192,58 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const Expression* expr)
 			{
 				case TOKEN_LITERAL_INTEGER:
 					String_AppendCString(&self->output, "Type: Integer Literal { Value: ");
+					String_AppendConstCharSpan(&self->output, token->location.snippet);
+					String_AppendCString(&self->output, ", ");
+					String_AppendCString(&self->output, "Type: ");
+					String_AppendCString(&self->output, token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_INT
+						                                    ? "int"
+						                                    : token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_LONG
+							                                      ? "long"
+							                                      : token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_LONGLONG
+								                                        ? "long long"
+								                                        : token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDINT
+									                                          ? "unsigned int"
+									                                          : token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONG
+										                                            ? "unsigned long"
+										                                            : token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONGLONG
+											                                              ? "unsigned long long"
+											                                              : "???");
+					String_AppendCString(&self->output, ", ");
+					String_AppendCString(&self->output, "Base: ");
+					String_AppendCString(&self->output, token->data.literalInteger.base == 10
+						                                    ? "10"
+						                                    : token->data.literalInteger.base == 16
+							                                      ? "16"
+							                                      : token->data.literalInteger.base == 8
+								                                        ? "8"
+								                                        : token->data.literalInteger.base == 2
+									                                          ? "2"
+									                                          : "???");
+					String_AppendCString(&self->output, " }\n");
 					break;
 				case TOKEN_LITERAL_FLOAT:
 					String_AppendCString(&self->output, "Type: Floating Point Literal { Value: ");
+					String_AppendConstCharSpan(&self->output, token->location.snippet);
+					String_AppendCString(&self->output, " }\n");
 					break;
 				case TOKEN_LITERAL_CHAR:
 					String_AppendCString(&self->output, "Type: Character Literal { Value: ");
+					String_AppendConstCharSpan(&self->output, token->location.snippet);
+					String_AppendCString(&self->output, " }\n");
 					break;
 				case TOKEN_LITERAL_STRING:
 					String_AppendCString(&self->output, "Type: String Literal { Value: ");
+					String_AppendConstCharSpan(&self->output, token->location.snippet);
+					String_AppendCString(&self->output, " }\n");
 					break;
 				case TOKEN_IDENTIFIER:
 					String_AppendCString(&self->output, "Type: Identifier { Name: ");
+					String_AppendConstCharSpan(&self->output, token->location.snippet);
+					String_AppendCString(&self->output, " }\n");
 					break;
 				default:
 					abort(); // Unexpected token type
 			}
-			String_AppendConstCharSpan(&self->output, token->location.snippet);
-			String_AppendCString(&self->output, " }\n");
 
 			self->indent--;
 			AstPrinter_PrintIndentation(self);
@@ -222,7 +277,7 @@ static void Parse(const SourceFile* source, CompilerErrorList* errorList)
 
 	Parser parser = Parser_Create(tokens, errorList);
 
-	using const Expression* expr = Parser_ParseExpression(&parser);
+	using const AstExpression* expr = Parser_ParseExpression(&parser);
 	if (expr)
 	{
 		AstPrinter printer = AstPrinter_Create();

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CompilerError.h"
-#include "Expression.h"
+#include "AstExpression.h"
 #include "Token.h"
 
 typedef struct
@@ -19,4 +19,4 @@ static Parser Parser_Create(TokenList* tokens, CompilerErrorList* errorList)
 	};
 }
 
-Expression* Parser_ParseExpression(Parser* self);
+AstExpression* Parser_ParseExpression(Parser* self);

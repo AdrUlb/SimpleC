@@ -428,7 +428,7 @@ restart:
 
 		return Token_Create(TOKEN_IDENTIFIER,
 		                    lexeme,
-		                    (Token_Data) { 0 });
+		                    (Token_Data) { .literalIdentifier = { lexeme.snippet } });
 	}
 
 	// Unexpected character
