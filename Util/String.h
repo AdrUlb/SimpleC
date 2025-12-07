@@ -41,4 +41,4 @@ void String_AppendCodePoint(String* str, uint32_t codePoint);
 char* String_GetBuffer(String* str);
 const char* String_AsCString(const String* str);
 CharSpan String_AsCharSpan(String* str);
-ConstCharSpan String_AsConstCharSpan(const String* str);
+ConstCharSpan String_AsConstCharSpan(String* str);

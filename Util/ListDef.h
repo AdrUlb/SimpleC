@@ -1,3 +1,6 @@
+// ReSharper disable once CppMissingIncludeGuard
+#include "Macros.h"
+
 #ifndef LIST_TYPE
 #error "LIST_TYPE_NAME must be defined before including this file"
 #endif
@@ -7,8 +10,6 @@
 #endif
 
 #define ELEMENT_SIZE sizeof(LIST_ELEMENT_TYPE)
-#define CONCAT(a, b) a##b
-#define EXPAND_AND_CONCAT(a, b) CONCAT(a, b)
 #define F(name, ...) EXPAND_AND_CONCAT(EXPAND_AND_CONCAT(LIST_TYPE, _), name)(__VA_ARGS__)
 
 #include <stdbool.h>
@@ -132,6 +133,4 @@ static bool F(RemoveAt, LIST_TYPE* self, const size_t index)
 }
 
 #undef ELEMENT_SIZE
-#undef CONCAT
-#undef EXPAND_AND_CONCAT
 #undef F

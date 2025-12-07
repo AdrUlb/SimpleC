@@ -1,3 +1,6 @@
+// ReSharper disable once CppMissingIncludeGuard
+#include "Macros.h"
+
 #ifndef ARRAY_TYPE
 #error "ARRAY_TYPE must be defined before including this file"
 #define ARRAY_TYPE IntArray
@@ -9,8 +12,6 @@
 #endif
 
 #define ELEMENT_SIZE sizeof(ARRAY_ELEMENT_TYPE)
-#define CONCAT(a, b) a##b
-#define EXPAND_AND_CONCAT(a, b) CONCAT(a, b)
 #define F(name, ...) EXPAND_AND_CONCAT(EXPAND_AND_CONCAT(ARRAY_TYPE, _), name)(__VA_ARGS__)
 
 #include <stddef.h>
@@ -35,6 +36,4 @@ static void F(Fini, const ARRAY_TYPE* self)
 }
 
 #undef ELEMENT_SIZE
-#undef CONCAT
-#undef EXPAND_AND_CONCAT
 #undef F

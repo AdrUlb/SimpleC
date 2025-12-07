@@ -190,7 +190,7 @@ CharSpan String_AsCharSpan(String* str)
 	return CharSpan_Create(String_GetBuffer(str), String_Length(str));
 }
 
-ConstCharSpan String_AsConstCharSpan(const String* str)
+ConstCharSpan String_AsConstCharSpan(String* str)
 {
-	return ConstCharSpan_Create(String_AsCString(str), String_Length(str));
+	return ConstCharSpan_Create(String_GetBuffer(str), String_Length(str));
 }

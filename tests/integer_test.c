@@ -108,3 +108,6 @@
 1uLL
 1Ull
 1ULL
+
+// invalid octal
+07778
