@@ -33,19 +33,19 @@ typedef int a;
 
 static void AstPrinter_PrintTypeName(AstPrinter* self, const AstTypeName* type)
 {
-	for (size_t i = 0; i < type->qualifiers->size; i++)
+	for (size_t i = 0; i < type->specifierQualifierList->qualifiers->size; i++)
 	{
-		const AstTypeQualifier* qualifier = type->qualifiers->data[i];
+		const AstTypeQualifier* qualifier = type->specifierQualifierList->qualifiers->data[i];
 		String_AppendCString(&self->output, AstTypeQualifier_Type_ToString(qualifier->type));
-		if (i < type->qualifiers->size - 1 || type->specifiers->size > 0)
+		if (i < type->specifierQualifierList->qualifiers->size - 1 || type->specifierQualifierList->specifiers->size > 0)
 			String_AppendChar(&self->output, ' ');
 	}
 
-	for (size_t i = 0; i < type->specifiers->size; i++)
+	for (size_t i = 0; i < type->specifierQualifierList->specifiers->size; i++)
 	{
-		const AstTypeSpecifier* specifier = type->specifiers->data[i];
+		const AstTypeSpecifier* specifier = type->specifierQualifierList->specifiers->data[i];
 		String_AppendCString(&self->output, AstTypeSpecifier_Type_ToString(specifier->type));
-		if (i < type->specifiers->size - 1)
+		if (i < type->specifierQualifierList->specifiers->size - 1)
 			String_AppendChar(&self->output, ' ');
 	}
 }
@@ -263,10 +263,10 @@ static void Parse(const SourceFile* source, CompilerErrorList* errorList)
 	{
 		const Token token = Lexer_GetNextToken(&lexer, false, false);
 
+		TokenList_AppendFromPtr(tokens, &token);
+
 		if (token.type == TOKEN_EOF)
 			break;
-
-		TokenList_AppendFromPtr(tokens, &token);
 	}
 
 	for (size_t i = 0; i < tokens->size; i++)
