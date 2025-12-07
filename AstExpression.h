@@ -1,8 +1,7 @@
 #pragma once
 
-#include "AstType.h"
+#include "AstTypeName.h"
 #include "Token.h"
-#include "Util/Macros.h"
 
 #define AST_EXPR_ENUM_VALUES \
 	X(UNARY) \
@@ -178,13 +177,13 @@ typedef struct
 
 typedef struct
 {
-	AstTypeName* type;
+	AstTypeName* typeName;
 	AstExpression* expression;
 } AstCastExpression;
 
 typedef struct
 {
-	AstTypeName* type;
+	AstTypeName* typeName;
 } AstSizeofTypeExpression;
 
 typedef struct
@@ -305,10 +304,10 @@ static void AstExpression_Fini(const AstExpression* self)
 			Release(self->data.ternary.right);
 			break;
 		case AST_EXPR_CAST:
-			Release(self->data.cast.type);
+			Release(self->data.cast.typeName);
 			break;
 		case AST_EXPR_SIZEOF_TYPE:
-			Release(self->data.sizeofType.type);
+			Release(self->data.sizeofType.typeName);
 			break;
 		case AST_EXPR_MEMBER_ACCESS:
 			Release(self->data.memberAccess.expression);

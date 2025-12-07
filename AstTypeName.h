@@ -24,21 +24,21 @@
 	X(RESTRICT) \
 	X(VOLATILE)
 
-typedef enum AstSpecifier_Type
+typedef enum AstTypeSpecifier_Type
 {
 #define X(name) AST_SPECIFIER_##name,
 	AST_SPECIFIER_ENUM_VALUES
 #undef X
 } AstType_Specifier_Type;
 
-typedef enum AstQualifier_Type
+typedef enum AstTypeQualifier_Type
 {
 #define X(name) AST_QUALIFIER_##name,
 	AST_QUALIFIER_ENUM_VALUES
 #undef X
 } AstQualifier_Type;
 
-static const char* AstType_Specifier_Type_ToString(const AstType_Specifier_Type type)
+static const char* AstTypeSpecifier_Type_ToString(const AstType_Specifier_Type type)
 {
 	switch (type)
 	{
@@ -50,7 +50,7 @@ static const char* AstType_Specifier_Type_ToString(const AstType_Specifier_Type 
 	}
 }
 
-static const char* AstType_Qualifier_Type_ToString(const AstQualifier_Type type)
+static const char* AstTypeQualifier_Type_ToString(const AstQualifier_Type type)
 {
 	switch (type)
 	{
@@ -65,15 +65,15 @@ static const char* AstType_Qualifier_Type_ToString(const AstQualifier_Type type)
 typedef struct
 {
 	AstType_Specifier_Type type;
-} AstSpecifier;
+} AstTypeSpecifier;
 
-static AstSpecifier* AstSpecifier_Init_WithArgs(AstSpecifier* self, const AstType_Specifier_Type type)
+static AstTypeSpecifier* AstTypeSpecifier_Init_WithArgs(AstTypeSpecifier* self, const AstType_Specifier_Type type)
 {
 	self->type = type;
 	return self;
 }
 
-static void AstSpecifier_Fini(const AstSpecifier* self)
+static void AstTypeSpecifier_Fini(const AstTypeSpecifier* self)
 {
 	(void)self;
 }
@@ -81,27 +81,27 @@ static void AstSpecifier_Fini(const AstSpecifier* self)
 typedef struct
 {
 	AstQualifier_Type type;
-} AstQualifier;
+} AstTypeQualifier;
 
-static AstQualifier* AstQualifier_Init_WithArgs(AstQualifier* self, const AstQualifier_Type type)
+static AstTypeQualifier* AstTypeQualifier_Init_WithArgs(AstTypeQualifier* self, const AstQualifier_Type type)
 {
 	self->type = type;
 	return self;
 }
 
-static void AstQualifier_Fini(const AstQualifier* self)
+static void AstTypeQualifier_Fini(const AstTypeQualifier* self)
 {
 	(void)self;
 }
 
-#define LIST_TYPE AstSpecifierList
-#define LIST_ELEMENT_TYPE AstSpecifier*
+#define LIST_TYPE AstTypeSpecifierList
+#define LIST_ELEMENT_TYPE AstTypeSpecifier*
 #include "Util/ListDef.h"
 #undef LIST_TYPE
 #undef LIST_ELEMENT_TYPE
 
-#define LIST_TYPE AstQualifierList
-#define LIST_ELEMENT_TYPE AstQualifier*
+#define LIST_TYPE AstTypeQualifierList
+#define LIST_ELEMENT_TYPE AstTypeQualifier*
 #include "Util/ListDef.h"
 #undef LIST_TYPE
 #undef LIST_ELEMENT_TYPE
@@ -109,11 +109,11 @@ static void AstQualifier_Fini(const AstQualifier* self)
 typedef struct
 {
 	SourceLocation location;
-	AstSpecifierList* specifiers;
-	AstQualifierList* qualifiers;
+	AstTypeSpecifierList* specifiers;
+	AstTypeQualifierList* qualifiers;
 } AstTypeName;
 
-static AstTypeName* AstTypeName_Init_WithArgs(AstTypeName* self, AstSpecifierList* specifiers, AstQualifierList* qualifiers, const SourceLocation location)
+static AstTypeName* AstTypeName_Init_WithArgs(AstTypeName* self, AstTypeSpecifierList* specifiers, AstTypeQualifierList* qualifiers, const SourceLocation location)
 {
 	self->location = location;
 	self->specifiers = specifiers;

@@ -21,17 +21,17 @@ set(UTIL_SOURCES
 )
 
 set(SOURCES
-		Lexer.h
-		Lexer.c
-		Token.h
-		Token.c
-		Parser.h
-		Parser.c
 		main.c
-		CompilerError.h
-		SourceFile.h
 		AstExpression.h
-		AstType.h
+		AstTypeName.h
+		CompilerError.h
+		Lexer.c
+		Lexer.h
+		Parser.c
+		Parser.h
+		SourceFile.h
+		Token.c
+		Token.h
 )
 add_executable(SimpleC ${UTIL_SOURCES} ${SOURCES})
 

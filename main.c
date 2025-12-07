@@ -35,16 +35,16 @@ static void AstPrinter_PrintTypeName(AstPrinter* self, const AstTypeName* type)
 {
 	for (size_t i = 0; i < type->qualifiers->size; i++)
 	{
-		const AstQualifier* qualifier = type->qualifiers->data[i];
-		String_AppendCString(&self->output, AstType_Qualifier_Type_ToString(qualifier->type));
+		const AstTypeQualifier* qualifier = type->qualifiers->data[i];
+		String_AppendCString(&self->output, AstTypeQualifier_Type_ToString(qualifier->type));
 		if (i < type->qualifiers->size - 1 || type->specifiers->size > 0)
 			String_AppendChar(&self->output, ' ');
 	}
 
 	for (size_t i = 0; i < type->specifiers->size; i++)
 	{
-		const AstSpecifier* specifier = type->specifiers->data[i];
-		String_AppendCString(&self->output, AstType_Specifier_Type_ToString(specifier->type));
+		const AstTypeSpecifier* specifier = type->specifiers->data[i];
+		String_AppendCString(&self->output, AstTypeSpecifier_Type_ToString(specifier->type));
 		if (i < type->specifiers->size - 1)
 			String_AppendChar(&self->output, ' ');
 	}
@@ -140,7 +140,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "Type: ");
-			AstPrinter_PrintTypeName(self, expr->data.sizeofType.type);
+			AstPrinter_PrintTypeName(self, expr->data.sizeofType.typeName);
 			String_AppendChar(&self->output, '\n');
 
 			self->indent--;

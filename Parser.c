@@ -1,13 +1,41 @@
+// https://learn.microsoft.com/en-us/cpp/c-language/phrase-structure-grammar
+
 #include "Parser.h"
 
 #include <math.h>
 
 #include "Util/Managed.h"
 
+static Token* Parser_PeekToken(const Parser* self);
+static Token* Parser_ConsumeToken(Parser* self);
+static bool Parser_MatchToken(Parser* self, Token_Type type, SourceLocation* outLocation);
+
+static AstExpression* Parser_ParsePrimaryExpression(Parser* self);
+static AstExpression* Parser_ParsePostfixExpression(Parser* self);
+static AstExpression* Parser_ParseUnaryExpression(Parser* self);
 static AstExpression* Parser_ParseCastExpression(Parser* self);
+static AstExpression* Parser_ParseMultiplicativeExpression(Parser* self);
+static AstExpression* Parser_ParseAdditiveExpression(Parser* self);
+static AstExpression* Parser_ParseShiftExpression(Parser* self);
+static AstExpression* Parser_ParseRelationalExpression(Parser* self);
+static AstExpression* Parser_ParseEqualityExpression(Parser* self);
+static AstExpression* Parser_ParseBitwiseAndExpression(Parser* self);
+static AstExpression* Parser_ParseBitwiseXorExpression(Parser* self);
+static AstExpression* Parser_ParseBitwiseOrExpression(Parser* self);
+static AstExpression* Parser_ParseLogicalAndExpression(Parser* self);
+static AstExpression* Parser_ParseLogicalOrExpression(Parser* self);
+static AstExpression* Parser_ParseConditionalExpression(Parser* self);
 static AstExpression* Parser_ParseAssignmentExpression(Parser* self);
 
-static Token* Parser_PeekToken(const Parser* self)
+static AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self, SourceLocation* outLocation);
+static bool Parser_TryParseSpecifierQualifierList(Parser* self,
+                                                  AstTypeSpecifierList* specifiers,
+                                                  AstTypeQualifierList* qualifiers,
+                                                  SourceLocation* outLocation);
+static AstTypeQualifier* Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation);
+static AstTypeName* Parser_TryParseTypeName(Parser* self);
+
+Token* Parser_PeekToken(const Parser* self)
 {
 	if (self->currentTokenIndex >= self->tokens->size)
 		return NULL;
@@ -15,7 +43,7 @@ static Token* Parser_PeekToken(const Parser* self)
 	return &self->tokens->data[self->currentTokenIndex];
 }
 
-static Token* Parser_ConsumeToken(Parser* self)
+Token* Parser_ConsumeToken(Parser* self)
 {
 	if (self->currentTokenIndex >= self->tokens->size)
 		return NULL;
@@ -23,7 +51,7 @@ static Token* Parser_ConsumeToken(Parser* self)
 	return &self->tokens->data[self->currentTokenIndex++];
 }
 
-static bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocation* outLocation)
+bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocation* outLocation)
 {
 	const Token* token = Parser_PeekToken(self);
 	if (token == NULL || token->type != type)
@@ -35,149 +63,7 @@ static bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocatio
 	return true;
 }
 
-static bool Parser_ParseSpecifierQualifierList(Parser* self, AstSpecifierList** outSpecifiers, AstQualifierList** outQualifiers, SourceLocation* outLocation)
-{
-	// specifier-qualifier-list
-	AstSpecifierList* specifiers = New(AstSpecifierList);
-	AstQualifierList* qualifiers = New(AstQualifierList);
-
-	*outSpecifiers = specifiers;
-	*outQualifiers = qualifiers;
-
-	SourceLocation locationStart = { 0 };
-	SourceLocation locationEnd = { 0 };
-
-	while (true)
-	{
-		const Token* token = Parser_PeekToken(self);
-		if (token == NULL)
-			return NULL;
-
-		AstType_Specifier_Type specifierType;
-		switch (token->type)
-		{
-			case TOKEN_KEYWORD_VOID:
-				specifierType = AST_SPECIFIER_VOID;
-				break;
-			case TOKEN_KEYWORD_CHAR:
-				specifierType = AST_SPECIFIER_CHAR;
-				break;
-			case TOKEN_KEYWORD_SHORT:
-				specifierType = AST_SPECIFIER_SHORT;
-				break;
-			case TOKEN_KEYWORD_INT:
-				specifierType = AST_SPECIFIER_INT;
-				break;
-			case TOKEN_KEYWORD_LONG:
-				specifierType = AST_SPECIFIER_LONG;
-				break;
-			case TOKEN_KEYWORD_FLOAT:
-				specifierType = AST_SPECIFIER_FLOAT;
-				break;
-			case TOKEN_KEYWORD_DOUBLE:
-				specifierType = AST_SPECIFIER_DOUBLE;
-				break;
-			case TOKEN_KEYWORD_SIGNED:
-				specifierType = AST_SPECIFIER_SIGNED;
-				break;
-			case TOKEN_KEYWORD_UNSIGNED:
-				specifierType = AST_SPECIFIER_UNSIGNED;
-				break;
-			case TOKEN_KEYWORD_STRUCT:
-				specifierType = AST_SPECIFIER_STRUCT;
-				break;
-			case TOKEN_KEYWORD_UNION:
-				specifierType = AST_SPECIFIER_UNION;
-				break;
-			case TOKEN_KEYWORD_ENUM:
-				specifierType = AST_SPECIFIER_ENUM;
-				break;
-			default:
-				// TODO: check if identifier is a typedef-name
-				specifierType = AST_SPECIFIER_NONE;
-				break;
-		}
-
-		if (specifierType == AST_SPECIFIER_STRUCT ||
-		    specifierType == AST_SPECIFIER_UNION ||
-		    specifierType == AST_SPECIFIER_ENUM)
-		{
-			// TODO: struct-or-union-specifier or enum-specifier
-			abort();
-		}
-
-		if (specifierType != AST_SPECIFIER_NONE)
-		{
-			if (!locationStart.sourceFile)
-				locationStart = token->location;
-
-			locationEnd = token->location;
-
-			Parser_ConsumeToken(self);
-			AstSpecifierList_Append(specifiers, NewWith(AstSpecifier, Args, specifierType));
-		}
-
-		AstQualifier_Type qualifierType;
-		switch (token->type)
-		{
-			case TOKEN_KEYWORD_CONST:
-				qualifierType = AST_QUALIFIER_CONST;
-				break;
-			case TOKEN_KEYWORD_VOLATILE:
-				qualifierType = AST_QUALIFIER_VOLATILE;
-				break;
-			case TOKEN_KEYWORD_RESTRICT:
-				qualifierType = AST_QUALIFIER_RESTRICT;
-				break;
-			default:
-				qualifierType = AST_QUALIFIER_NONE;
-				break;
-		}
-
-		if (qualifierType != AST_QUALIFIER_NONE)
-		{
-			if (!locationStart.sourceFile)
-				locationStart = token->location;
-
-			locationEnd = token->location;
-
-			Parser_ConsumeToken(self);
-			AstQualifierList_Append(qualifiers, NewWith(AstQualifier, Args, qualifierType));
-		}
-
-		// TODO: alignment specifiers
-
-		if (specifierType == AST_SPECIFIER_NONE && qualifierType == AST_QUALIFIER_NONE)
-			break;
-	}
-
-	if (specifiers->size == 0 && qualifiers->size == 0)
-	{
-		Release(specifiers);
-		Release(qualifiers);
-		return false;
-	}
-
-	*outLocation = SourceLocation_Concat(&locationStart, &locationEnd);
-	return true;
-}
-
-static AstTypeName* Parser_TryParseTypeName(Parser* self) // type-name
-{
-	// specifier-qualifier-list
-	AstSpecifierList* specifiers;
-	AstQualifierList* qualifiers;
-	SourceLocation specifierQualifierLocation = { 0 };
-
-	if (!Parser_ParseSpecifierQualifierList(self, &specifiers, &qualifiers, &specifierQualifierLocation))
-		return NULL;
-
-	// TODO: optional abstract-declarator
-
-	return NewWith(AstTypeName, Args, specifiers, qualifiers, specifierQualifierLocation);
-}
-
-static AstExpression* Parser_ParsePrimaryExpression(Parser* self)
+AstExpression* Parser_ParsePrimaryExpression(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
 	if (token == NULL)
@@ -185,7 +71,7 @@ static AstExpression* Parser_ParsePrimaryExpression(Parser* self)
 
 	if (token->type == TOKEN_PUNCTUATOR_PARENOPEN)
 	{
-		// Parenthesized expression
+		// (<expression>)
 		Parser_ConsumeToken(self);
 
 		AstExpression* expr = Parser_ParseExpression(self);
@@ -201,11 +87,11 @@ static AstExpression* Parser_ParsePrimaryExpression(Parser* self)
 		return expr;
 	}
 
-	if (token->type == TOKEN_LITERAL_INTEGER ||
-	    token->type == TOKEN_LITERAL_FLOAT ||
-	    token->type == TOKEN_LITERAL_CHAR ||
-	    token->type == TOKEN_LITERAL_STRING ||
-	    token->type == TOKEN_IDENTIFIER)
+	if (token->type == TOKEN_LITERAL_INTEGER || // integer-constant
+	    token->type == TOKEN_LITERAL_FLOAT || // floating-constant
+	    token->type == TOKEN_LITERAL_CHAR || // character-constant
+	    token->type == TOKEN_LITERAL_STRING || // string-literal
+	    token->type == TOKEN_IDENTIFIER) // identifier or constant (enumeration-constant)
 	{
 		Parser_ConsumeToken(self);
 
@@ -214,10 +100,12 @@ static AstExpression* Parser_ParsePrimaryExpression(Parser* self)
 		               token->location);
 	}
 
+	// TODO: generic-selection
+
 	return NULL;
 }
 
-static AstExpression* Parser_ParsePostfixExpression(Parser* self)
+AstExpression* Parser_ParsePostfixExpression(Parser* self)
 {
 	const size_t savedTokenIndex = self->currentTokenIndex;
 
@@ -227,17 +115,18 @@ static AstExpression* Parser_ParsePostfixExpression(Parser* self)
 		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENOPEN, NULL))
 			goto primary;
 
-		const AstTypeName* type = Parser_TryParseTypeName(self);
+		using const AstTypeName* type = Parser_TryParseTypeName(self);
 		if (!type)
 			goto primary;
 
-		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL) || !Parser_MatchToken(self, TOKEN_PUNCTUATOR_BRACEOPEN, NULL))
-		{
-			Release(type);
+		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL))
 			goto primary;
-		}
 
-		// TOOD: initializer list
+		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_BRACEOPEN, NULL))
+			goto primary;
+
+		// TODO: initializer list
+		RetainConst(type);
 		abort();
 	}
 	else
@@ -350,7 +239,7 @@ static AstExpression* Parser_ParsePostfixExpression(Parser* self)
 	return expression;
 }
 
-static AstExpression* Parser_ParseUnaryExpression(Parser* self)
+AstExpression* Parser_ParseUnaryExpression(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
 	if (token == NULL)
@@ -481,7 +370,7 @@ AstExpression* Parser_ParseCastExpression(Parser* self)
 	return NewWith(AstExpression, Cast, (AstCastExpression){ type, expr }, SourceLocation_Concat(&startLocation, &expr->location));
 }
 
-static AstExpression* Parser_ParseMultiplicativeExpression(Parser* self)
+AstExpression* Parser_ParseMultiplicativeExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseCastExpression(self);
 	if (!lhs)
@@ -523,7 +412,7 @@ static AstExpression* Parser_ParseMultiplicativeExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseAdditiveExpression(Parser* self)
+AstExpression* Parser_ParseAdditiveExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseMultiplicativeExpression(self);
 	if (!lhs)
@@ -562,7 +451,7 @@ static AstExpression* Parser_ParseAdditiveExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseShiftExpression(Parser* self)
+AstExpression* Parser_ParseShiftExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseAdditiveExpression(self);
 	if (!lhs)
@@ -601,7 +490,7 @@ static AstExpression* Parser_ParseShiftExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseRelationalExpression(Parser* self)
+AstExpression* Parser_ParseRelationalExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseShiftExpression(self);
 	if (!lhs)
@@ -646,7 +535,7 @@ static AstExpression* Parser_ParseRelationalExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseEqualityExpression(Parser* self)
+AstExpression* Parser_ParseEqualityExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseRelationalExpression(self);
 	if (!lhs)
@@ -685,7 +574,7 @@ static AstExpression* Parser_ParseEqualityExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseBitwiseAndExpression(Parser* self)
+AstExpression* Parser_ParseBitwiseAndExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseEqualityExpression(self);
 	if (!lhs)
@@ -703,7 +592,7 @@ static AstExpression* Parser_ParseBitwiseAndExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseBitwiseXorExpression(Parser* self)
+AstExpression* Parser_ParseBitwiseXorExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseBitwiseAndExpression(self);
 	if (!lhs)
@@ -721,7 +610,7 @@ static AstExpression* Parser_ParseBitwiseXorExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseBitwiseOrExpression(Parser* self)
+AstExpression* Parser_ParseBitwiseOrExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseBitwiseXorExpression(self);
 	if (!lhs)
@@ -739,7 +628,7 @@ static AstExpression* Parser_ParseBitwiseOrExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseLogicalAndExpression(Parser* self)
+AstExpression* Parser_ParseLogicalAndExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseBitwiseOrExpression(self);
 	if (!lhs)
@@ -757,7 +646,7 @@ static AstExpression* Parser_ParseLogicalAndExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseLogicalOrExpression(Parser* self)
+AstExpression* Parser_ParseLogicalOrExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseLogicalAndExpression(self);
 	if (!lhs)
@@ -775,7 +664,7 @@ static AstExpression* Parser_ParseLogicalOrExpression(Parser* self)
 	return lhs;
 }
 
-static AstExpression* Parser_ParseConditionalExpression(Parser* self)
+AstExpression* Parser_ParseConditionalExpression(Parser* self)
 {
 	AstExpression* lhs = Parser_ParseLogicalOrExpression(self);
 	if (!lhs)
@@ -807,6 +696,12 @@ static AstExpression* Parser_ParseConditionalExpression(Parser* self)
 
 AstExpression* Parser_ParseAssignmentExpression(Parser* self)
 {
+	// NOTE: Technically, according to the C standard, this is either
+	//  - a unary expression or
+	//  - a conditional expression followed by an assignment operator and another assignment expression.
+	// This definition enforces that only l-values can be assigned to within the language grammar.
+	// However, for simplicity, we will parse it as a conditional expression followed by an optional
+	// assignment operator and another assignment expression, and perform l-value checking later during semantic analysis.
 	AstExpression* lhs = Parser_ParseConditionalExpression(self);
 	if (!lhs)
 		return NULL;
@@ -856,11 +751,6 @@ AstExpression* Parser_ParseAssignmentExpression(Parser* self)
 
 		if (op != AST_BINOP_NONE)
 		{
-			/* TODO: FIXME
-			if (!Expression_IsLValue(lhs))
-				CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_InvalidAssignmentTarget, lhs->location));
-			*/
-
 			Parser_ConsumeToken(self);
 			AstExpression* rhs = Parser_ParseAssignmentExpression(self);
 			if (!rhs)
@@ -891,4 +781,166 @@ AstExpression* Parser_ParseExpression(Parser* self)
 	}
 
 	return lhs;
+}
+
+AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self, SourceLocation* outLocation)
+{
+	const Token* token = Parser_PeekToken(self);
+	if (token == NULL)
+		return NULL;
+
+	AstType_Specifier_Type specifierType;
+	switch (token->type)
+	{
+		case TOKEN_KEYWORD_VOID:
+			specifierType = AST_SPECIFIER_VOID;
+			break;
+		case TOKEN_KEYWORD_CHAR:
+			specifierType = AST_SPECIFIER_CHAR;
+			break;
+		case TOKEN_KEYWORD_SHORT:
+			specifierType = AST_SPECIFIER_SHORT;
+			break;
+		case TOKEN_KEYWORD_INT:
+			specifierType = AST_SPECIFIER_INT;
+			break;
+		case TOKEN_KEYWORD_LONG:
+			specifierType = AST_SPECIFIER_LONG;
+			break;
+		case TOKEN_KEYWORD_FLOAT:
+			specifierType = AST_SPECIFIER_FLOAT;
+			break;
+		case TOKEN_KEYWORD_DOUBLE:
+			specifierType = AST_SPECIFIER_DOUBLE;
+			break;
+		case TOKEN_KEYWORD_SIGNED:
+			specifierType = AST_SPECIFIER_SIGNED;
+			break;
+		case TOKEN_KEYWORD_UNSIGNED:
+			specifierType = AST_SPECIFIER_UNSIGNED;
+			break;
+		case TOKEN_KEYWORD_STRUCT:
+			specifierType = AST_SPECIFIER_STRUCT;
+			break;
+		case TOKEN_KEYWORD_UNION:
+			specifierType = AST_SPECIFIER_UNION;
+			break;
+		case TOKEN_KEYWORD_ENUM:
+			specifierType = AST_SPECIFIER_ENUM;
+			break;
+		default:
+			// TODO: check if identifier is a typedef-name
+			specifierType = AST_SPECIFIER_NONE;
+			break;
+	}
+
+	if (specifierType == AST_SPECIFIER_STRUCT ||
+	    specifierType == AST_SPECIFIER_UNION ||
+	    specifierType == AST_SPECIFIER_ENUM)
+	{
+		// TODO: struct-or-union-specifier or enum-specifier
+		abort();
+	}
+
+	if (specifierType != AST_SPECIFIER_NONE)
+	{
+		*outLocation = token->location;
+
+		Parser_ConsumeToken(self);
+		return NewWith(AstTypeSpecifier, Args, specifierType);
+	}
+
+	return NULL;
+}
+
+bool Parser_TryParseSpecifierQualifierList(Parser* self, AstTypeSpecifierList* specifiers, AstTypeQualifierList* qualifiers, SourceLocation* outLocation)
+{
+	SourceLocation locationStart = { 0 };
+	SourceLocation locationEnd = { 0 };
+
+	while (true)
+	{
+		AstTypeSpecifier* specifier = Parser_TryParseTypeSpecifier(self, &locationEnd);
+		if (specifier)
+		{
+			if (!locationStart.sourceFile)
+				locationStart = locationEnd;
+
+			AstTypeSpecifierList_Append(specifiers, specifier);
+			continue;
+		}
+
+		AstTypeQualifier* qualifier = Parser_TryParseTypeQualifier(self, &locationEnd);
+		if (qualifier)
+		{
+			if (!locationStart.sourceFile)
+				locationStart = locationEnd;
+
+			AstTypeQualifierList_Append(qualifiers, qualifier);
+			continue;
+		}
+
+		// TODO: alignment specifiers
+
+		break;
+	}
+
+	if (specifiers->size == 0 && qualifiers->size == 0)
+		return false;
+
+	*outLocation = SourceLocation_Concat(&locationStart, &locationEnd);
+	return true;
+}
+
+AstTypeQualifier* Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation)
+{
+	const Token* token = Parser_PeekToken(self);
+	if (token == NULL)
+		return NULL;
+
+	AstQualifier_Type qualifierType;
+	switch (token->type)
+	{
+		case TOKEN_KEYWORD_CONST:
+			qualifierType = AST_QUALIFIER_CONST;
+			break;
+		case TOKEN_KEYWORD_VOLATILE:
+			qualifierType = AST_QUALIFIER_VOLATILE;
+			break;
+		case TOKEN_KEYWORD_RESTRICT:
+			qualifierType = AST_QUALIFIER_RESTRICT;
+			break;
+		default:
+			qualifierType = AST_QUALIFIER_NONE;
+			break;
+	}
+
+	if (qualifierType != AST_QUALIFIER_NONE)
+	{
+		*outLocation = token->location;
+
+		Parser_ConsumeToken(self);
+		return NewWith(AstTypeQualifier, Args, qualifierType);
+	}
+
+	return NULL;
+}
+
+AstTypeName* Parser_TryParseTypeName(Parser* self) // type-name
+{
+	// specifier-qualifier-list
+	AstTypeSpecifierList* specifiers = New(AstTypeSpecifierList);
+	AstTypeQualifierList* qualifiers = New(AstTypeQualifierList);
+	SourceLocation specifierQualifierLocation = { 0 };
+
+	if (!Parser_TryParseSpecifierQualifierList(self, specifiers, qualifiers, &specifierQualifierLocation))
+	{
+		Release(specifiers);
+		Release(qualifiers);
+		return NULL;
+	}
+
+	// TODO: optional abstract-declarator
+
+	return NewWith(AstTypeName, Args, specifiers, qualifiers, specifierQualifierLocation);
 }
