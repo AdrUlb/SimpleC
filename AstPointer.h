@@ -4,10 +4,10 @@
 typedef struct
 {
 	SourceLocation location;
-	AstTypeQualifierList* qualifiers;
+	AstTypeQualifiers qualifiers;
 } AstPointer;
 
-static AstPointer* AstPointer_Init_WithArgs(AstPointer* self, AstTypeQualifierList* qualifiers, SourceLocation location)
+static AstPointer* AstPointer_Init_WithArgs(AstPointer* self, AstTypeQualifiers qualifiers, SourceLocation location)
 {
 	self->location = location;
 	self->qualifiers = qualifiers;
@@ -16,5 +16,5 @@ static AstPointer* AstPointer_Init_WithArgs(AstPointer* self, AstTypeQualifierLi
 
 static void AstPointer_Fini(const AstPointer* self)
 {
-	Release(self->qualifiers);
+	(void)self;
 }

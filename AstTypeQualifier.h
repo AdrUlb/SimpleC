@@ -1,50 +1,32 @@
 #pragma once
 
-#define AST_TYPEQUALIFIER_ENUM_VALUES \
-X(NONE) \
-X(CONST) \
-X(RESTRICT) \
-X(VOLATILE)
+#define AST_TYPEQUALIFIERS_ENUM_VALUES \
+	X(NONE, 0) \
+	X(CONST, 1 << 0) \
+	X(RESTRICT, 1 << 1) \
+	X(VOLATILE, 1 << 2)
 
-typedef enum AstTypeQualifier_Type
+typedef enum AstTypeQualifiers
 {
-#define X(name) AST_TYPEQUALIFIER_##name,
-	AST_TYPEQUALIFIER_ENUM_VALUES
+#define X(name, value) AST_TYPEQUALIFIERS_##name = (value),
+	AST_TYPEQUALIFIERS_ENUM_VALUES
 #undef X
-} AstTypeQualifier_Type;
+} AstTypeQualifiers;
 
-static const char* AstTypeQualifier_Type_ToString(const AstTypeQualifier_Type type)
+static String* AstTypeQualifiers_ToString(const AstTypeQualifiers type)
 {
-	switch (type)
-	{
-#define X(name) case AST_TYPEQUALIFIER_##name: return #name;
-		AST_TYPEQUALIFIER_ENUM_VALUES
-#undef X
-		default:
-			return "<unknown>";
+	String* str = New(String);
+
+#define X(name, value) \
+	if (type & AST_TYPEQUALIFIERS_##name) \
+	{ \
+		if (String_Length(str) != 0) \
+			String_AppendCString(str, ", "); \
+		String_AppendCString(str, #name); \
 	}
+
+	AST_TYPEQUALIFIERS_ENUM_VALUES
+#undef X
+
+	return str;
 }
-
-typedef struct
-{
-	SourceLocation location;
-	AstTypeQualifier_Type type;
-} AstTypeQualifier;
-
-static AstTypeQualifier* AstTypeQualifier_Init_WithArgs(AstTypeQualifier* self, const AstTypeQualifier_Type type, const SourceLocation location)
-{
-	self->type = type;
-	self->location = location;
-	return self;
-}
-
-static void AstTypeQualifier_Fini(const AstTypeQualifier* self)
-{
-	(void)self;
-}
-
-#define LIST_TYPE AstTypeQualifierList
-#define LIST_ELEMENT_TYPE AstTypeQualifier*
-#include "Util/ListDef.h"
-#undef LIST_TYPE
-#undef LIST_ELEMENT_TYPE

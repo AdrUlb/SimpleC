@@ -33,13 +33,9 @@ typedef int a;
 
 static void AstPrinter_PrintTypeName(AstPrinter* self, const AstTypeName* type)
 {
-	for (size_t i = 0; i < type->specifierQualifierList->qualifiers->size; i++)
-	{
-		const AstTypeQualifier* qualifier = type->specifierQualifierList->qualifiers->data[i];
-		String_AppendCString(&self->output, AstTypeQualifier_Type_ToString(qualifier->type));
-		if (i < type->specifierQualifierList->qualifiers->size - 1 || type->specifierQualifierList->specifiers->size > 0)
-			String_AppendChar(&self->output, ' ');
-	}
+	const AstTypeQualifiers qualifiers = type->specifierQualifierList->qualifiers;
+	using const String* str = AstTypeQualifiers_ToString(qualifiers);
+	String_AppendCString(&self->output, String_AsCString(str));
 
 	for (size_t i = 0; i < type->specifierQualifierList->specifiers->size; i++)
 	{
@@ -205,7 +201,8 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 									                                          ? "unsigned int"
 									                                          : token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONG
 										                                            ? "unsigned long"
-										                                            : token->data.literalInteger.type == TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONGLONG
+										                                            : token->data.literalInteger.type ==
+										                                              TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONGLONG
 											                                              ? "unsigned long long"
 											                                              : "???");
 					String_AppendCString(&self->output, ", ");

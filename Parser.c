@@ -34,10 +34,10 @@ static AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 static AstStorageClassSpecifier* Parser_TryParseStorageClassSpecifier(Parser* self);
 static AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self);
 static AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* self);
-static AstTypeQualifier* Parser_TryParseTypeQualifier(Parser* self);
+static AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation);
 static AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self);
 static AstPointer* Parser_TryParsePointer(Parser* self);
-static AstTypeQualifierList* Parser_TryParseTypeQualifierList(Parser* self);
+static AstTypeQualifiers Parser_TryParseTypeQualifierList(Parser* self, SourceLocation* outLocation);
 static AstTypeName* Parser_TryParseTypeName(Parser* self);
 
 Token* Parser_PeekToken(const Parser* self)
@@ -795,7 +795,7 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 
 	AstStorageClassSpecifierList* storageClassSpecifiers = New(AstStorageClassSpecifierList);
 	AstTypeSpecifierList* typeSpecifiers = New(AstTypeSpecifierList);
-	AstTypeQualifierList* typeQualifiers = New(AstTypeQualifierList);
+	AstTypeQualifiers typeQualifiers = AST_TYPEQUALIFIERS_NONE;
 	AstFunctionSpecifierList* functionSpecifiers = New(AstFunctionSpecifierList);
 
 	while (true)
@@ -824,15 +824,13 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 			continue;
 		}
 
-		AstTypeQualifier* typeQualifier = Parser_TryParseTypeQualifier(self);
+		AstTypeQualifiers typeQualifier = Parser_TryParseTypeQualifier(self, &locationEnd);
 		if (typeQualifier)
 		{
 			if (!locationStart.sourceFile)
 				locationStart = locationEnd;
 
-			locationEnd = typeQualifier->location;
-
-			AstTypeQualifierList_Append(typeQualifiers, typeQualifier);
+			typeQualifiers |= typeQualifier;
 			continue;
 		}
 
@@ -853,7 +851,7 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 		break;
 	}
 
-	if (storageClassSpecifiers->size == 0 && typeSpecifiers->size == 0 && typeQualifiers->size == 0 && functionSpecifiers->size == 0)
+	if (storageClassSpecifiers->size == 0 && typeSpecifiers->size == 0 && !typeQualifiers && functionSpecifiers->size == 0)
 	{
 		const Token* token = Parser_PeekToken(self);
 		CompilerErrorList_Append(self->errors, CompilerError_Create("expected declaration specifier", token->location));
@@ -978,31 +976,29 @@ AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* sel
 	SourceLocation locationEnd = { 0 };
 
 	AstTypeSpecifierList* specifiers = New(AstTypeSpecifierList);
-	AstTypeQualifierList* qualifiers = New(AstTypeQualifierList);
+	AstTypeQualifiers qualifiers = AST_TYPEQUALIFIERS_NONE;
 
 	while (true)
 	{
 		AstTypeSpecifier* specifier = Parser_TryParseTypeSpecifier(self);
 		if (specifier)
 		{
+			locationEnd = specifier->location;
+
 			if (!locationStart.sourceFile)
 				locationStart = locationEnd;
-
-			locationEnd = specifier->location;
 
 			AstTypeSpecifierList_Append(specifiers, specifier);
 			continue;
 		}
 
-		AstTypeQualifier* qualifier = Parser_TryParseTypeQualifier(self);
+		const AstTypeQualifiers qualifier = Parser_TryParseTypeQualifier(self, &locationEnd);
 		if (qualifier)
 		{
 			if (!locationStart.sourceFile)
 				locationStart = locationEnd;
 
-			locationEnd = qualifier->location;
-
-			AstTypeQualifierList_Append(qualifiers, qualifier);
+			qualifiers |= qualifier;
 			continue;
 		}
 
@@ -1011,42 +1007,43 @@ AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* sel
 		break;
 	}
 
-	if (specifiers->size == 0 && qualifiers->size == 0)
+	if (specifiers->size == 0 && !qualifiers)
 		return NULL;
 
 	return NewWith(AstTypeSpecifierQualifierList, Args, specifiers, qualifiers, SourceLocation_Concat(&locationStart, &locationEnd));
 }
 
-AstTypeQualifier* Parser_TryParseTypeQualifier(Parser* self)
+AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation)
 {
 	const Token* token = Parser_PeekToken(self);
 	if (token == NULL)
-		return NULL;
+		return AST_TYPEQUALIFIERS_NONE;
 
-	AstTypeQualifier_Type type;
+	AstTypeQualifiers type;
 	switch (token->type)
 	{
 		case TOKEN_KEYWORD_CONST:
-			type = AST_TYPEQUALIFIER_CONST;
+			type = AST_TYPEQUALIFIERS_CONST;
 			break;
 		case TOKEN_KEYWORD_VOLATILE:
-			type = AST_TYPEQUALIFIER_VOLATILE;
+			type = AST_TYPEQUALIFIERS_VOLATILE;
 			break;
 		case TOKEN_KEYWORD_RESTRICT:
-			type = AST_TYPEQUALIFIER_RESTRICT;
+			type = AST_TYPEQUALIFIERS_RESTRICT;
 			break;
 		default:
-			type = AST_TYPEQUALIFIER_NONE;
+			type = AST_TYPEQUALIFIERS_NONE;
 			break;
 	}
 
-	if (type != AST_TYPEQUALIFIER_NONE)
+	if (type != AST_TYPEQUALIFIERS_NONE)
 	{
 		Parser_ConsumeToken(self);
-		return NewWith(AstTypeQualifier, Args, type, token->location);
+		*outLocation = token->location;
+		return type;
 	}
 
-	return NULL;
+	return AST_TYPEQUALIFIERS_NONE;
 }
 
 AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self)
@@ -1082,42 +1079,41 @@ AstPointer* Parser_TryParsePointer(Parser* self)
 	if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_ASTERISK, &locationStart))
 		return NULL;
 
-	AstTypeQualifierList* typeQualifiers = Parser_TryParseTypeQualifierList(self);
+	SourceLocation locationEnd = { 0 };
+	const AstTypeQualifiers typeQualifiers = Parser_TryParseTypeQualifierList(self, &locationEnd);
 	if (!typeQualifiers)
 	{
 		self->currentTokenIndex = savedTokenIndex;
 		return NULL;
 	}
 
-	return NewWith(AstPointer, Args, typeQualifiers, SourceLocation_Concat(&locationStart, &typeQualifiers->data[typeQualifiers->size - 1]->location));
+	return NewWith(AstPointer, Args, typeQualifiers, SourceLocation_Concat(&locationStart, &locationEnd));
 }
 
-AstTypeQualifierList* Parser_TryParseTypeQualifierList(Parser* self)
+AstTypeQualifiers Parser_TryParseTypeQualifierList(Parser* self, SourceLocation* outLocation)
 {
 	SourceLocation locationStart = { 0 };
 	SourceLocation locationEnd = { 0 };
 
-	AstTypeQualifierList* qualifiers = New(AstTypeQualifierList);
+	AstTypeQualifiers qualifiers = AST_TYPEQUALIFIERS_NONE;
 
 	while (true)
 	{
-		AstTypeQualifier* qualifier = Parser_TryParseTypeQualifier(self);
+		const AstTypeQualifiers qualifier = Parser_TryParseTypeQualifier(self, &locationEnd);
 		if (qualifier)
 		{
 			if (!locationStart.sourceFile)
 				locationStart = locationEnd;
 
-			locationEnd = qualifier->location;
-
-			AstTypeQualifierList_Append(qualifiers, qualifier);
+			qualifiers |= qualifier;
 			continue;
 		}
 
 		break;
 	}
 
-	if (qualifiers->size == 0)
-		return NULL;
+	if (outLocation && qualifiers)
+		*outLocation = SourceLocation_Concat(&locationStart, &locationEnd);
 
 	return qualifiers;
 }
