@@ -3,8 +3,8 @@
 #include "SourceFile.h"
 
 #define AST_FUNCTIONSPECIFIER_ENUM_VALUES \
-X(NONE) \
-X(INLINE) \
+	X(NONE) \
+	X(INLINE) \
 
 typedef enum AstFunctionSpecifier_Type
 {

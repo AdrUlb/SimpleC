@@ -3,7 +3,10 @@
 #include "Parser.h"
 
 #include <math.h>
+#include "AstDeclaration.h"
 #include "AstDeclarationSpecifiers.h"
+#include "AstDeclarator.h"
+#include "AstDirectDeclarator.h"
 #include "AstFunctionSpecifier.h"
 #include "AstPointer.h"
 #include "AstStorageClassSpecifier.h"
@@ -29,13 +32,15 @@ static AstExpression* Parser_ParseLogicalAndExpression(Parser* self);
 static AstExpression* Parser_ParseLogicalOrExpression(Parser* self);
 static AstExpression* Parser_ParseConditionalExpression(Parser* self);
 static AstExpression* Parser_ParseAssignmentExpression(Parser* self);
-
+static AstDeclaration* Parser_TryParseDeclaration(Parser* self);
 static AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self);
 static AstStorageClassSpecifier* Parser_TryParseStorageClassSpecifier(Parser* self);
 static AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self);
 static AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* self);
 static AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation);
 static AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self);
+static AstDeclarator* Parser_TryParseDeclarator(Parser* self);
+static AstDirectDeclarator* Parser_TryParseDirectDeclarator(Parser* self);
 static AstPointer* Parser_TryParsePointer(Parser* self);
 static AstTypeQualifiers Parser_TryParseTypeQualifierList(Parser* self, SourceLocation* outLocation);
 static AstTypeName* Parser_TryParseTypeName(Parser* self);
@@ -788,6 +793,27 @@ AstExpression* Parser_ParseExpression(Parser* self)
 	return lhs;
 }
 
+AstDeclaration* Parser_TryParseDeclaration(Parser* self)
+{
+	// TODO: static_assert-declaration
+
+	AstDeclarationSpecifiers* declSpecs = Parser_ParseDeclarationSpecifiers(self);
+	if (!declSpecs)
+		return NULL;
+
+	// TODO: init-declarator-list
+
+	SourceLocation endLocation = { 0 };
+	if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_SEMICOLON, &endLocation))
+	{
+		CompilerErrorList_Append(self->errors, CompilerError_Create("expected ';' at end of declaration", declSpecs->location));
+		Release(declSpecs);
+		return NULL;
+	}
+	return NewWith(AstDeclaration, Args, declSpecs,
+	               SourceLocation_Concat(&declSpecs->location, &endLocation));
+}
+
 AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 {
 	SourceLocation locationStart = { 0 };
@@ -1070,6 +1096,55 @@ AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self)
 	}
 
 	return NULL;
+}
+
+AstDeclarator* Parser_TryParseDeclarator(Parser* self)
+{
+	AstPointer* pointer = Parser_TryParsePointer(self);
+	AstDirectDeclarator* directDeclarator = Parser_TryParseDirectDeclarator(self);
+	if (!directDeclarator)
+	{
+		Release(pointer);
+		return NULL;
+	}
+
+	const SourceLocation locationStart = pointer ? pointer->location : directDeclarator->location;
+	const SourceLocation loc = SourceLocation_Concat(&locationStart, &directDeclarator->location);
+	return NewWith(AstDeclarator, Args, pointer, directDeclarator, loc);
+}
+
+AstDirectDeclarator* Parser_TryParseDirectDeclarator(Parser* self)
+{
+	const Token* token = Parser_PeekToken(self);
+	if (token == NULL)
+		return NULL;
+
+	if (token->type == TOKEN_IDENTIFIER)
+	{
+		Parser_ConsumeToken(self);
+		return NewWith(AstDirectDeclarator, Identifier, token->data.literalIdentifier.value, token->location);
+	}
+
+	if (token->type == TOKEN_PUNCTUATOR_PARENOPEN)
+	{
+		Parser_ConsumeToken(self);
+
+		AstDeclarator* declarator = Parser_TryParseDeclarator(self);
+		if (!declarator)
+			return NULL;
+
+		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENCLOSE, NULL))
+		{
+			CompilerErrorList_Append(self->errors, CompilerError_Create("expected ')' in parenthesized declarator", declarator->location));
+			Release(declarator);
+			return NULL;
+		}
+
+		return NewWith(AstDirectDeclarator, Parenthesized, declarator, SourceLocation_Concat(&token->location, &declarator->location));
+	}
+
+	// TODO: array declarators, function declarators, etc.
+	abort();
 }
 
 AstPointer* Parser_TryParsePointer(Parser* self)
