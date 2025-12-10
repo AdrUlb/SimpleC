@@ -1,5 +1,7 @@
 #pragma once
 
+#include "SourceFile.h"
+
 #define AST_FUNCTIONSPECIFIER_ENUM_VALUES \
 X(NONE) \
 X(INLINE) \

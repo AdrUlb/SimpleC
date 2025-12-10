@@ -59,6 +59,13 @@
 	\
 	X(KEYWORD_SIZEOF) \
 	\
+	X(KEYWORD_ALIGNAS) \
+	X(KEYWORD_ALIGNOF) \
+	X(KEYWORD_ATOMIC) \
+	X(KEYWORD_GENERIC) \
+	X(KEYWORD_STATICASSERT) \
+	X(KEYWORD_THREADLOCAL) \
+	\
 	X(PUNCTUATOR_EQUAL)  \
 	X(PUNCTUATOR_PLUS) \
 	X(PUNCTUATOR_MINUS) \
@@ -112,14 +119,12 @@
 	\
 	X(MAX)
 
-
 typedef enum
 {
 #define X(name) TOKEN_##name,
 	TOKEN_ENUM_VALUES
 #undef X
 } Token_Type;
-
 
 static const char* Token_Type_ToString(const Token_Type type)
 {
@@ -248,6 +253,19 @@ static const TokenStringMapEntry keywords[] = {
 
 	// Keywords: operators
 	{ "sizeof", TOKEN_KEYWORD_SIZEOF },
+
+	// Keywords: others
+	{ "_Alignas", TOKEN_KEYWORD_ALIGNAS },
+	{ "_Alignof", TOKEN_KEYWORD_ALIGNOF },
+	{ "_Atomic", TOKEN_KEYWORD_ATOMIC },
+	{ "_Generic", TOKEN_KEYWORD_GENERIC },
+	{ "_Static_assert", TOKEN_KEYWORD_STATICASSERT },
+	{ "_Thread_local", TOKEN_KEYWORD_THREADLOCAL },
+	// New spellings as of C23
+	{ "alignas", TOKEN_KEYWORD_ALIGNAS },
+	{ "alignof", TOKEN_KEYWORD_ALIGNOF },
+	{ "static_assert", TOKEN_KEYWORD_STATICASSERT },
+	{ "thread_local", TOKEN_KEYWORD_THREADLOCAL },
 };
 
 typedef enum

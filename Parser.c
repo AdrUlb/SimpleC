@@ -3,9 +3,9 @@
 #include "Parser.h"
 
 #include <math.h>
-
 #include "AstDeclarationSpecifiers.h"
 #include "AstFunctionSpecifier.h"
+#include "AstPointer.h"
 #include "AstStorageClassSpecifier.h"
 #include "Util/Managed.h"
 
@@ -36,6 +36,8 @@ static AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self);
 static AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* self);
 static AstTypeQualifier* Parser_TryParseTypeQualifier(Parser* self);
 static AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self);
+static AstPointer* Parser_TryParsePointer(Parser* self);
+static AstTypeQualifierList* Parser_TryParseTypeQualifierList(Parser* self);
 static AstTypeName* Parser_TryParseTypeName(Parser* self);
 
 Token* Parser_PeekToken(const Parser* self)
@@ -1071,6 +1073,53 @@ AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self)
 	}
 
 	return NULL;
+}
+
+AstPointer* Parser_TryParsePointer(Parser* self)
+{
+	SourceLocation locationStart = { 0 };
+	const size_t savedTokenIndex = self->currentTokenIndex;
+	if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_ASTERISK, &locationStart))
+		return NULL;
+
+	AstTypeQualifierList* typeQualifiers = Parser_TryParseTypeQualifierList(self);
+	if (!typeQualifiers)
+	{
+		self->currentTokenIndex = savedTokenIndex;
+		return NULL;
+	}
+
+	return NewWith(AstPointer, Args, typeQualifiers, SourceLocation_Concat(&locationStart, &typeQualifiers->data[typeQualifiers->size - 1]->location));
+}
+
+AstTypeQualifierList* Parser_TryParseTypeQualifierList(Parser* self)
+{
+	SourceLocation locationStart = { 0 };
+	SourceLocation locationEnd = { 0 };
+
+	AstTypeQualifierList* qualifiers = New(AstTypeQualifierList);
+
+	while (true)
+	{
+		AstTypeQualifier* qualifier = Parser_TryParseTypeQualifier(self);
+		if (qualifier)
+		{
+			if (!locationStart.sourceFile)
+				locationStart = locationEnd;
+
+			locationEnd = qualifier->location;
+
+			AstTypeQualifierList_Append(qualifiers, qualifier);
+			continue;
+		}
+
+		break;
+	}
+
+	if (qualifiers->size == 0)
+		return NULL;
+
+	return qualifiers;
 }
 
 AstTypeName* Parser_TryParseTypeName(Parser* self) // type-name
