@@ -11,7 +11,7 @@ typedef struct
 	AstStorageClassSpecifierList* storageClassSpecifiers;
 	AstTypeSpecifierList* typeSpecifiers;
 	AstTypeQualifiers typeQualifiers;
-	AstFunctionSpecifierList* functionSpecifiers;
+	AstFunctionSpecifiers functionSpecifiers;
 	// TODO: alignment specifiers
 } AstDeclarationSpecifiers;
 
@@ -20,7 +20,7 @@ static AstDeclarationSpecifiers* AstDeclarationSpecifiers_Init_WithArgs(
 	AstStorageClassSpecifierList* storageClassSpecifiers,
 	AstTypeSpecifierList* typeSpecifiers,
 	const AstTypeQualifiers typeQualifiers,
-	AstFunctionSpecifierList* functionSpecifiers,
+	const AstFunctionSpecifiers functionSpecifiers,
 	const SourceLocation location)
 {
 	self->storageClassSpecifiers = storageClassSpecifiers;
@@ -35,5 +35,4 @@ static void AstDeclarationSpecifiers_Fini(const AstDeclarationSpecifiers* self)
 {
 	Release(self->storageClassSpecifiers);
 	Release(self->typeSpecifiers);
-	Release(self->functionSpecifiers);
 }

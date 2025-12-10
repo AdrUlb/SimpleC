@@ -79,7 +79,15 @@ restart:
 		Lexer_ConsumeChar(self); // Consume second '/'
 
 		while (((c = Lexer_PeekChar(self))) && c != '\n')
+		{
 			Lexer_ConsumeChar(self);
+			if (c == '\\')
+			{
+				// Line continuation
+				if (Lexer_PeekChar(self) == '\n')
+					Lexer_ConsumeChar(self);
+			}
+		}
 
 		if (includeComments)
 		{

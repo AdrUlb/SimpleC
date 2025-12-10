@@ -34,15 +34,19 @@ typedef int a;
 static void AstPrinter_PrintTypeName(AstPrinter* self, const AstTypeName* type)
 {
 	const AstTypeQualifiers qualifiers = type->specifierQualifierList->qualifiers;
-	using const String* str = AstTypeQualifiers_ToString(qualifiers);
-	String_AppendCString(&self->output, String_AsCString(str));
+	using const String* qualifiersStr = AstTypeQualifiers_ToString(qualifiers);
+	String_AppendCString(&self->output, "Qualifiers: ");
+	String_AppendCString(&self->output, String_AsCString(qualifiersStr));
+	String_AppendChar(&self->output, '\n');
+	AstPrinter_PrintIndentation(self);
+	String_AppendCString(&self->output, "Specifiers: ");
 
 	for (size_t i = 0; i < type->specifierQualifierList->specifiers->size; i++)
 	{
 		const AstTypeSpecifier* specifier = type->specifierQualifierList->specifiers->data[i];
 		String_AppendCString(&self->output, AstTypeSpecifier_Type_ToString(specifier->type));
 		if (i < type->specifierQualifierList->specifiers->size - 1)
-			String_AppendChar(&self->output, ' ');
+			String_AppendCString(&self->output, ", ");
 	}
 }
 

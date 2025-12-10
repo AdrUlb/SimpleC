@@ -21,3 +21,9 @@ static void AstDeclaration_Fini(const AstDeclaration* self)
 {
 	Release(self->declSpecs);
 }
+
+#define LIST_TYPE AstDeclarationList
+#define LIST_ELEMENT_TYPE AstDeclaration*
+#include "Util/ListDef.h"
+#undef LIST_TYPE
+#undef LIST_ELEMENT_TYPE

@@ -1,50 +1,30 @@
 #pragma once
 
-#include "SourceFile.h"
+#define AST_FUNCTIONSPECIFIERS_ENUM_VALUES \
+	X(NONE, 0) \
+	X(INLINE, 1 << 0)
 
-#define AST_FUNCTIONSPECIFIER_ENUM_VALUES \
-	X(NONE) \
-	X(INLINE) \
-
-typedef enum AstFunctionSpecifier_Type
+typedef enum AstFunctionSpecifiers
 {
-#define X(name) AST_FUNCTIONSPECIFIER_##name,
-	AST_FUNCTIONSPECIFIER_ENUM_VALUES
+#define X(name, value) AST_FUNCTIONSPECIFIERS_##name = value,
+	AST_FUNCTIONSPECIFIERS_ENUM_VALUES
 #undef X
-} AstFunctionSpecifier_Type;
+} AstFunctionSpecifiers;
 
-static const char* AstFunctionSpecifier_Type_ToString(const AstFunctionSpecifier_Type type)
+static String* AstFunctionSpecifiers_ToString(const AstFunctionSpecifiers type)
 {
-	switch (type)
-	{
-#define X(name) case AST_FUNCTIONSPECIFIER_##name: return #name;
-		AST_FUNCTIONSPECIFIER_ENUM_VALUES
-#undef X
-		default:
-		return "<unknown>";
+	String* str = New(String);
+
+#define X(name, value) \
+	if (type & AST_FUNCTIONSPECIFIERS_##name) \
+	{ \
+		if (String_Length(str) != 0) \
+			String_AppendCString(str, ", "); \
+		String_AppendCString(str, #name); \
 	}
+
+	AST_FUNCTIONSPECIFIERS_ENUM_VALUES
+#undef X
+
+	return str;
 }
-
-typedef struct
-{
-	SourceLocation location;
-	AstFunctionSpecifier_Type type;
-} AstFunctionSpecifier;
-
-static AstFunctionSpecifier* AstFunctionSpecifier_Init_WithArgs(AstFunctionSpecifier* self, const AstFunctionSpecifier_Type type, const SourceLocation location)
-{
-	self->type = type;
-	self->location = location;
-	return self;
-}
-
-static void AstFunctionSpecifier_Fini(const AstFunctionSpecifier* self)
-{
-	(void)self;
-}
-
-#define LIST_TYPE AstFunctionSpecifierList
-#define LIST_ELEMENT_TYPE AstFunctionSpecifier*
-#include "Util/ListDef.h"
-#undef LIST_TYPE
-#undef LIST_ELEMENT_TYPE

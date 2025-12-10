@@ -38,7 +38,7 @@ static AstStorageClassSpecifier* Parser_TryParseStorageClassSpecifier(Parser* se
 static AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self);
 static AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* self);
 static AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation);
-static AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self);
+static AstFunctionSpecifiers Parser_TryParseFunctionSpecifier(Parser* self, SourceLocation* outLocation);
 static AstDeclarator* Parser_TryParseDeclarator(Parser* self);
 static AstDirectDeclarator* Parser_TryParseDirectDeclarator(Parser* self);
 static AstPointer* Parser_TryParsePointer(Parser* self);
@@ -822,7 +822,7 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 	AstStorageClassSpecifierList* storageClassSpecifiers = New(AstStorageClassSpecifierList);
 	AstTypeSpecifierList* typeSpecifiers = New(AstTypeSpecifierList);
 	AstTypeQualifiers typeQualifiers = AST_TYPEQUALIFIERS_NONE;
-	AstFunctionSpecifierList* functionSpecifiers = New(AstFunctionSpecifierList);
+	AstFunctionSpecifiers functionSpecifiers = AST_FUNCTIONSPECIFIERS_NONE;
 
 	while (true)
 	{
@@ -850,7 +850,7 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 			continue;
 		}
 
-		AstTypeQualifiers typeQualifier = Parser_TryParseTypeQualifier(self, &locationEnd);
+		const AstTypeQualifiers typeQualifier = Parser_TryParseTypeQualifier(self, &locationEnd);
 		if (typeQualifier)
 		{
 			if (!locationStart.sourceFile)
@@ -860,15 +860,13 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 			continue;
 		}
 
-		AstFunctionSpecifier* functionSpecifier = Parser_TryParseFunctionSpecifier(self);
+		const AstFunctionSpecifiers functionSpecifier = Parser_TryParseFunctionSpecifier(self, &locationEnd);
 		if (functionSpecifier)
 		{
 			if (!locationStart.sourceFile)
 				locationStart = locationEnd;
 
-			locationEnd = functionSpecifier->location;
-
-			AstFunctionSpecifierList_Append(functionSpecifiers, functionSpecifier);
+			functionSpecifiers |= functionSpecifier;
 			continue;
 		}
 
@@ -877,8 +875,10 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 		break;
 	}
 
-	if (storageClassSpecifiers->size == 0 && typeSpecifiers->size == 0 && !typeQualifiers && functionSpecifiers->size == 0)
+	if (storageClassSpecifiers->size == 0 && typeSpecifiers->size == 0 && !typeQualifiers && !functionSpecifiers)
 	{
+		Release(storageClassSpecifiers);
+		Release(typeSpecifiers);
 		const Token* token = Parser_PeekToken(self);
 		CompilerErrorList_Append(self->errors, CompilerError_Create("expected declaration specifier", token->location));
 		return NULL;
@@ -1034,7 +1034,10 @@ AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* sel
 	}
 
 	if (specifiers->size == 0 && !qualifiers)
+	{
+		Release(specifiers);
 		return NULL;
+	}
 
 	return NewWith(AstTypeSpecifierQualifierList, Args, specifiers, qualifiers, SourceLocation_Concat(&locationStart, &locationEnd));
 }
@@ -1065,37 +1068,40 @@ AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* out
 	if (type != AST_TYPEQUALIFIERS_NONE)
 	{
 		Parser_ConsumeToken(self);
-		*outLocation = token->location;
+		if (outLocation)
+			*outLocation = token->location;
 		return type;
 	}
 
 	return AST_TYPEQUALIFIERS_NONE;
 }
 
-AstFunctionSpecifier* Parser_TryParseFunctionSpecifier(Parser* self)
+AstFunctionSpecifiers Parser_TryParseFunctionSpecifier(Parser* self, SourceLocation* outLocation)
 {
 	const Token* token = Parser_PeekToken(self);
 	if (token == NULL)
-		return NULL;
+		return AST_FUNCTIONSPECIFIERS_NONE;
 
-	AstFunctionSpecifier_Type type;
+	AstFunctionSpecifiers type;
 	switch (token->type)
 	{
 		case TOKEN_KEYWORD_INLINE:
-			type = AST_FUNCTIONSPECIFIER_INLINE;
+			type = AST_FUNCTIONSPECIFIERS_INLINE;
 			break;
 		default:
-			type = AST_FUNCTIONSPECIFIER_NONE;
+			type = AST_FUNCTIONSPECIFIERS_NONE;
 			break;
 	}
 
-	if (type != AST_FUNCTIONSPECIFIER_NONE)
+	if (type != AST_FUNCTIONSPECIFIERS_NONE)
 	{
 		Parser_ConsumeToken(self);
-		return NewWith(AstFunctionSpecifier, Args, type, token->location);
+		if (outLocation)
+			*outLocation = token->location;
+		return type;
 	}
 
-	return NULL;
+	return AST_FUNCTIONSPECIFIERS_NONE;
 }
 
 AstDeclarator* Parser_TryParseDeclarator(Parser* self)

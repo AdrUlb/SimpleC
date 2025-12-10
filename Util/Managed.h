@@ -1,10 +1,12 @@
 #pragma once
 
+#include <stdatomic.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 typedef struct ManagedObjectHeader
 {
-	size_t refCount;
+	_Atomic size_t refCount;
 	void (*fini)(void*);
 } ManagedObjectHeader;
 
@@ -16,7 +18,7 @@ static void* NewImpl(const size_t size, void (*deleter)(void*))
 		abort();
 
 	// Set header info
-	header->refCount = 1;
+	atomic_store(&header->refCount, 1);
 	header->fini = deleter;
 
 	// Return pointer to object memory
@@ -30,8 +32,8 @@ static void ReleaseImpl(const void* ptr)
 
 	// Get header
 	ManagedObjectHeader* header = (ManagedObjectHeader*)ptr - 1;
-	header->refCount--;
-	if (header->refCount > 0)
+
+	if (atomic_fetch_sub_explicit(&header->refCount, 1, memory_order_acq_rel) > 1)
 		return;
 
 	// Call deleter
@@ -47,7 +49,7 @@ static void* RetainImpl(void* ptr)
 	if (ptr != NULL)
 	{
 		ManagedObjectHeader* header = ((ManagedObjectHeader*)ptr) - 1;
-		header->refCount++;
+		atomic_fetch_add(&header->refCount, 1);
 	}
 	return ptr;
 }
@@ -57,7 +59,7 @@ static const void* RetainConstImpl(const void* ptr)
 	if (ptr != NULL)
 	{
 		ManagedObjectHeader* header = ((ManagedObjectHeader*)ptr) - 1;
-		header->refCount++;
+		atomic_fetch_add(&header->refCount, 1);
 	}
 	return ptr;
 }
