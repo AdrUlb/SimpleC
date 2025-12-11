@@ -1,5 +1,7 @@
 #pragma once
 
+nullable_begin
+
 #define AST_STORAGECLASSSPECIFIER_ENUM_VALUES \
 	X(NONE) \
 	X(AUTO) \
@@ -44,6 +46,8 @@ static void AstStorageClassSpecifier_Fini(const AstStorageClassSpecifier* self)
 {
 	(void)self;
 }
+
+nullable_end
 
 #define LIST_TYPE AstStorageClassSpecifierList
 #define LIST_ELEMENT_TYPE AstStorageClassSpecifier*

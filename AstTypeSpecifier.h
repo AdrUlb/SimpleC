@@ -1,5 +1,7 @@
 #pragma once
 
+nullable_begin
+
 #define AST_TYPESPECIFIER_ENUM_VALUES \
 X(NONE) \
 X(VOID) \
@@ -52,6 +54,8 @@ static void AstTypeSpecifier_Fini(const AstTypeSpecifier* self)
 {
 	(void)self;
 }
+
+nullable_end
 
 #define LIST_TYPE AstTypeSpecifierList
 #define LIST_ELEMENT_TYPE AstTypeSpecifier*

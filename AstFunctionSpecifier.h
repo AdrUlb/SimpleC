@@ -1,5 +1,7 @@
 #pragma once
 
+nullable_begin
+
 #define AST_FUNCTIONSPECIFIERS_ENUM_VALUES \
 	X(NONE, 0) \
 	X(INLINE, 1 << 0)
@@ -28,3 +30,5 @@ static String* AstFunctionSpecifiers_ToString(const AstFunctionSpecifiers type)
 
 	return str;
 }
+
+nullable_end

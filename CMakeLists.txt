@@ -29,3 +29,23 @@ set(SOURCES
 add_executable(SimpleC ${UTIL_SOURCES} ${SOURCES})
 
 target_compile_options(SimpleC PRIVATE -Wall -Wextra -Wno-unused -pedantic)
+
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+	target_compile_options(SimpleC PRIVATE
+			-Weverything
+			-Wno-nullability-extension
+			-Wno-declaration-after-statement
+			-Wno-unsafe-buffer-usage
+			-Wno-padded
+			-Wno-pre-c11-compat
+			-Wno-covered-switch-default
+			-Wno-cast-function-type-strict
+			-Wno-incompatible-function-pointer-types-strict
+			-Wno-language-extension-token
+			-Wno-switch-enum
+			-Werror=nullability
+			-Werror=null-dereference
+			-Werror=nullability-completeness
+			-Werror=nullable-to-nonnull-conversion
+			-Werror=nonnull)
+endif ()

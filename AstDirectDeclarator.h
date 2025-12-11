@@ -2,6 +2,8 @@
 
 #include "SourceFile.h"
 
+nullable_begin
+
 #define AST_DIRECTDECLARATOR_ENUM_VALUES \
 	X(NONE) \
 	X(IDENTIFIER) \
@@ -67,7 +69,11 @@ static void AstDirectDeclarator_Fini(const AstDirectDeclarator* self)
 		case AST_DIRECTDECLARATOR_PARENTHESIZED:
 			Release(self->parenthesized);
 			break;
+		case AST_DIRECTDECLARATOR_NONE:
+		case AST_DIRECTDECLARATOR_IDENTIFIER:
 		default:
 			break;
 	}
 }
+
+nullable_end

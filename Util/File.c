@@ -4,14 +4,15 @@
 #include "Managed.h"
 #include "String.h"
 
+nullable_begin
+
 FileHandle* FileHandle_Init_WithArgs(FileHandle* self, const char* path, const char* mode)
 {
-	self->file = fopen(path, mode);
-	if (!self->file)
-	{
-		Release(self);
-		return NULL;
-	}
+	FILE* file = fopen(path, mode);
+	if (!file)
+		return self;
+
+	self->file = file;
 	return self;
 }
 
@@ -31,16 +32,16 @@ void FileHandle_SetPos(const FileHandle* handle, const size_t pos)
 
 size_t FileHandle_GetPos(const FileHandle* handle)
 {
-	return ftell(handle->file);
+	return (size_t)ftell(handle->file);
 }
 
 size_t FileHandle_GetSize(const FileHandle* handle)
 {
 	const long currentPos = ftell(handle->file);
 	fseek(handle->file, 0, SEEK_END);
-	const size_t size = ftell(handle->file);
+	const long size = ftell(handle->file);
 	fseek(handle->file, currentPos, SEEK_SET);
-	return size;
+	return (size_t)size;
 }
 
 void FileHandle_Read(const FileHandle* handle, void* buffer, const size_t size)
@@ -67,3 +68,5 @@ String* File_ReadAllText(const char* path)
 
 	return str;
 }
+
+nullable_end

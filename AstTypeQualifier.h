@@ -1,5 +1,7 @@
 #pragma once
 
+nullable_begin
+
 #define AST_TYPEQUALIFIERS_ENUM_VALUES \
 	X(NONE, 0) \
 	X(CONST, 1 << 0) \
@@ -30,3 +32,5 @@ static String* AstTypeQualifiers_ToString(const AstTypeQualifiers type)
 
 	return str;
 }
+
+nullable_end

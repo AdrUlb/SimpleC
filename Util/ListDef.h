@@ -28,7 +28,7 @@ static LIST_TYPE* F(Init_WithCapacity, LIST_TYPE* self, const size_t initialCapa
 	if (self == NULL)
 		return self;
 
-	self->data = malloc(ELEMENT_SIZE * initialCapacity);
+	self->data = (LIST_ELEMENT_TYPE*)malloc(ELEMENT_SIZE * initialCapacity);
 	if (self->data == NULL)
 	{
 		abort();
@@ -62,7 +62,7 @@ static bool F(Reserve, LIST_TYPE* self, const size_t newCapacity)
 		return true;
 
 
-	void* newData = realloc(self->data, ELEMENT_SIZE * newCapacity);
+	LIST_ELEMENT_TYPE* newData = (LIST_ELEMENT_TYPE*)realloc(self->data, ELEMENT_SIZE * newCapacity);
 	if (newData == NULL)
 		return false;
 
@@ -101,7 +101,7 @@ static bool F(AppendFromPtr, LIST_TYPE* self, const void* element)
 	}
 
 	const size_t index = self->size++;
-	void* dest = self->data + index;
+	void* dest = &self->data[index];
 	memcpy(dest, element, ELEMENT_SIZE);
 	return true;
 }

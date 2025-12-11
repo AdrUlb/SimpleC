@@ -25,7 +25,7 @@ String* String_Init_WithCapacity(String* self, const size_t capacity)
 {
 	if (capacity > STRING_SHORT_CAPACITY__)
 	{
-		self->long__.data = malloc(capacity + 1);
+		self->long__.data = (char*)malloc(capacity + 1);
 		self->long__.data[0] = '\0';
 		self->long__.capacity = capacity;
 
@@ -67,7 +67,7 @@ void String_Resize(String* str, const size_t newLength)
 			newCapacity = newCapacity + newCapacity / 2;
 
 		str->long__.capacity = newCapacity;
-		str->long__.data = realloc(str->long__.data, newCapacity + 1);
+		str->long__.data = (char*)realloc(str->long__.data, newCapacity + 1);
 		str->long__.data[newLength] = '\0';
 
 		str->length = newLength;
@@ -85,7 +85,7 @@ void String_Resize(String* str, const size_t newLength)
 	while (newCapacity < newLength)
 		newCapacity = newCapacity + newCapacity / 2;
 
-	char* newData = malloc(newCapacity + 1);
+	char* newData = (char*)malloc(newCapacity + 1);
 	strncpy(newData, str->short__.data, str->length);
 	newData[newLength] = '\0';
 

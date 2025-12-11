@@ -4,6 +4,8 @@
 #include "Util/Array.h"
 #include "Util/Managed.h"
 
+nullable_begin
+
 typedef struct
 {
 	size_t indent;
@@ -55,6 +57,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 	switch (expr->type)
 	{
 		case AST_EXPR_UNARY:
+		{
 			String_AppendCString(&self->output, "(Unary Expression) {\n");
 			self->indent++;
 
@@ -72,7 +75,9 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
+		}
 		case AST_EXPR_BINARY:
+		{
 			String_AppendCString(&self->output, "(Binary Expression) {\n");
 			self->indent++;
 
@@ -94,8 +99,10 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			self->indent--;
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
-			break;
+		}
+		break;
 		case AST_EXPR_TERNARY:
+		{
 			String_AppendCString(&self->output, "(Ternary Expression) {\n");
 			self->indent++;
 
@@ -123,7 +130,9 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
+		}
 		case AST_EXPR_CAST:
+		{
 			String_AppendCString(&self->output, "(Cast Expression) {\n");
 			self->indent++;
 
@@ -134,7 +143,9 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
+		}
 		case AST_EXPR_SIZEOF_TYPE:
+		{
 			String_AppendCString(&self->output, "(Sizeof Type Expression) {\n");
 			self->indent++;
 
@@ -147,7 +158,9 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
+		}
 		case AST_EXPR_MEMBER_ACCESS:
+		{
 			String_AppendCString(&self->output, "(Member Access Expression) {\n");
 			self->indent++;
 
@@ -158,7 +171,9 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
+		}
 		case AST_EXPR_CALL:
+		{
 			String_AppendCString(&self->output, "(Call Expression) {\n");
 			self->indent++;
 
@@ -181,6 +196,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			AstPrinter_PrintIndentation(self);
 			String_AppendCString(&self->output, "}");
 			break;
+		}
 		case AST_EXPR_PRIMARY:
 		{
 			String_AppendCString(&self->output, "(Primary Expression) {\n");
@@ -243,7 +259,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 					String_AppendCString(&self->output, " }\n");
 					break;
 				default:
-					abort(); // Unexpected token type
+					assert(false && "unreachable (invalid primary expression token)"); // Unexpected token type
 			}
 
 			self->indent--;
@@ -251,12 +267,14 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 			String_AppendCString(&self->output, "}");
 			break;
 		}
+		default:
+			assert(false && "unreachable");
 	}
 }
 
 static void Parse(const SourceFile* source, CompilerErrorList* errorList)
 {
-	using TokenList* tokens = New(TokenList);
+	using TokenList*nonnull tokens = New(TokenList);
 
 	Lexer lexer = Lexer_Create(source, errorList);
 
@@ -288,14 +306,19 @@ static void Parse(const SourceFile* source, CompilerErrorList* errorList)
 	}
 }
 
-int main(const int argc, char* argv[])
+static int run(const CStringSpan args)
 {
-	const CStringSpan args = CStringSpan_Create(argv, argc);
-
-	using const SourceFile* source = NewWith(SourceFile, Path, "tests/expression_test4.c");
-	if (source == NULL)
+	if (args.length == 1)
 	{
-		printf("Failed to open source file: tests/expression_test.c\n");
+		printf("Usage: %s <file>\n", args.data[0]);
+		return 1;
+	}
+
+	const char* filepath = args.data[1];
+	using const SourceFile* source = NewWith(SourceFile, Path, filepath);
+	if (source->content == NULL)
+	{
+		printf("Failed to open source file: %s\n", filepath);
 		return 1;
 	}
 
@@ -310,3 +333,10 @@ int main(const int argc, char* argv[])
 
 	return 0;
 }
+
+int main(const int argc, char*nonnull argv[])
+{
+	return run(CStringSpan_Create(argv, (size_t)argc));
+}
+
+nullable_end

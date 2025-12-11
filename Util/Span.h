@@ -7,8 +7,8 @@
 #define DEFINE_SPAN(spanType, spanElementType) \
 	typedef struct spanType \
 	{ \
-		spanElementType* data; \
 		size_t length; \
+		spanElementType* data; \
 	} spanType; \
 	\
 	static spanType spanType##_##Create(spanElementType* data, const size_t length) \
@@ -25,7 +25,7 @@
 		return spanType##_##Create(self.data + offset, length); \
 	} \
 	\
-	static const spanType spanType##_Empty = { NULL, 0, };
+	static const spanType spanType##_Empty = { 0, NULL };
 
 #define DEFINE_SPANS(spanType, spanElementType) \
 	DEFINE_SPAN(spanType, spanElementType) \

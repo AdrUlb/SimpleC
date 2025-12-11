@@ -2,9 +2,11 @@
 
 #include "String.h"
 
+nullable_begin
+
 typedef struct
 {
-	FILE* file;
+	FILE*nullable file;
 } FileHandle;
 
 FileHandle* FileHandle_Init_WithArgs(FileHandle* self, const char* path, const char* mode);
@@ -14,4 +16,6 @@ size_t FileHandle_GetPos(const FileHandle* handle);
 size_t FileHandle_GetSize(const FileHandle* handle);
 void FileHandle_Read(const FileHandle* handle, void* buffer, size_t size);
 void FileHandle_Write(const FileHandle* handle, const void* buffer, size_t size);
-String* File_ReadAllText(const char* path);
+String*nullable File_ReadAllText(const char* path);
+
+nullable_end

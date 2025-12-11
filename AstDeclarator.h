@@ -2,23 +2,27 @@
 #include "AstDirectDeclarator.h"
 #include "AstPointer.h"
 
+nullable_begin
+
 typedef struct AstDeclarator
 {
-	AstPointer* pointer_opt;
+	AstPointer*nullable pointer;
 	AstDirectDeclarator* directDeclarator;
 	SourceLocation location;
 } AstDeclarator;
 
-static AstDeclarator* AstDeclarator_Init_WithArgs(AstDeclarator* self, AstPointer* pointer_opt, AstDirectDeclarator* directDeclarator, const SourceLocation location)
+static AstDeclarator* AstDeclarator_Init_WithArgs(AstDeclarator* self, AstPointer*nullable pointer, AstDirectDeclarator* directDeclarator, const SourceLocation location)
 {
 	self->location = location;
-	self->pointer_opt = pointer_opt;
+	self->pointer = pointer;
 	self->directDeclarator = directDeclarator;
 	return self;
 }
 
 static void AstDeclarator_Fini(const AstDeclarator* self)
 {
-	Release(self->pointer_opt);
+	Release(self->pointer);
 	Release(self->directDeclarator);
 }
+
+nullable_end

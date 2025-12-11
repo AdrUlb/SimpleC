@@ -1,6 +1,9 @@
 #pragma once
 
+#include "AstExpression.h"
 #include "SourceFile.h"
+
+nullable_begin
 
 #define AST_STMT_ENUM_VALUES \
 	/* labeled statement */ \
@@ -45,9 +48,31 @@ static const char* AstStatement_Type_ToString(const AstStatement_Type type)
 
 typedef struct
 {
+	AstExpression*nullable expression;
+} AstExpressionStatement;
+
+typedef union
+{
+	AstExpressionStatement expression;
+} AstStatement_Data;
+
+typedef struct
+{
 	SourceLocation location;
 	AstStatement_Type type;
+	AstStatement_Data data;
+
 } AstStatement;
+
+static AstStatement* AstExpression_Init_WithExpression(AstStatement* self, const AstExpressionStatement data, const SourceLocation location)
+{
+	self->type = AST_STMT_EXPRESSION;
+	self->data.expression = data;
+	self->location = location;
+	return self;
+}
+
+nullable_end
 
 #define LIST_TYPE AstStatementList
 #define LIST_ELEMENT_TYPE AstStatement*

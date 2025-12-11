@@ -13,7 +13,7 @@ typedef struct ManagedObjectHeader
 static void* NewImpl(const size_t size, void (*deleter)(void*))
 {
 	// Create header, also allocating space for the object
-	ManagedObjectHeader* header = malloc(sizeof(ManagedObjectHeader) + size);
+	ManagedObjectHeader* header = (ManagedObjectHeader*)malloc(sizeof(ManagedObjectHeader) + size);
 	if (header == NULL)
 		abort();
 
@@ -25,7 +25,7 @@ static void* NewImpl(const size_t size, void (*deleter)(void*))
 	return header + 1;
 }
 
-static void ReleaseImpl(const void* ptr)
+static void ReleaseImpl(void* ptr)
 {
 	if (ptr == NULL)
 		return;
@@ -54,16 +54,6 @@ static void* RetainImpl(void* ptr)
 	return ptr;
 }
 
-static const void* RetainConstImpl(const void* ptr)
-{
-	if (ptr != NULL)
-	{
-		ManagedObjectHeader* header = ((ManagedObjectHeader*)ptr) - 1;
-		atomic_fetch_add(&header->refCount, 1);
-	}
-	return ptr;
-}
-
 static void CleanupUsingImpl(void* ptr)
 {
 	if (ptr == NULL)
@@ -74,8 +64,7 @@ static void CleanupUsingImpl(void* ptr)
 }
 
 #define using __attribute__((cleanup(CleanupUsingImpl)))
-#define New(type) type##_Init(NewImpl(sizeof(type), (void (*)(void*))type##_Fini))
-#define NewWith(type, with, ...) type##_Init_With##with(NewImpl(sizeof(type), (void (*)(void*))type##_Fini) __VA_OPT__(,) __VA_ARGS__)
+#define New(type) (type*)type##_Init((type*)NewImpl(sizeof(type), (void (*)(void*))type##_Fini))
+#define NewWith(type, with, ...) (type*)type##_Init_With##with((type*)NewImpl(sizeof(type), (void (*)(void*))type##_Fini) __VA_OPT__(,) __VA_ARGS__)
 #define Release(ptr) ReleaseImpl(ptr)
-#define Retain(ptr) RetainImpl(ptr)
-#define RetainConst(ptr) RetainConstImpl(ptr)
+#define Retain(ptr) (typeof (ptr))RetainImpl(ptr)

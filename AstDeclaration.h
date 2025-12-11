@@ -1,6 +1,8 @@
 #pragma once
 #include "AstDeclarationSpecifiers.h"
 
+nullable_begin
+
 typedef struct
 {
 	AstDeclarationSpecifiers* declSpecs;
@@ -21,6 +23,8 @@ static void AstDeclaration_Fini(const AstDeclaration* self)
 {
 	Release(self->declSpecs);
 }
+
+nullable_end
 
 #define LIST_TYPE AstDeclarationList
 #define LIST_ELEMENT_TYPE AstDeclaration*

@@ -4,6 +4,8 @@
 #include "AstTypeSpecifier.h"
 #include "SourceFile.h"
 
+nullable_begin
+
 typedef struct
 {
 	SourceLocation location;
@@ -28,3 +30,5 @@ static void AstTypeSpecifierQualifierList_Fini(const AstTypeSpecifierQualifierLi
 		Release(self->specifiers->data[i]);
 	Release(self->specifiers);
 }
+
+nullable_end

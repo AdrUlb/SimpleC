@@ -1,6 +1,8 @@
 #pragma once
 #include "SourceFile.h"
 
+nullable_begin
+
 typedef struct
 {
 	const char* message;
@@ -9,7 +11,9 @@ typedef struct
 
 #define LIST_TYPE CompilerErrorList
 #define LIST_ELEMENT_TYPE CompilerError
+nullable_end
 #include "Util/ListDef.h"
+nullable_begin
 #undef LIST_TYPE
 #undef LIST_ELEMENT_TYPE
 
@@ -28,3 +32,5 @@ static const char* ErrorMsg_ExpectedClosingParenthesisInCastExpression = "expect
 static const char* ErrorMsg_ExpectedClosingParenthesisInSizeofTypeExpression = "expected ')' in sizeof(<type>) expression";
 static const char* ErrorMsg_ExpectedClosingBracketInSubscriptExpression = "expected ']' in subscript expression";
 static const char* ErrorMsg_ExpectedClosingParenthesisInParenthesizedExpression = "expected ')' in parenthesized expression";
+
+nullable_end

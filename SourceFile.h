@@ -3,10 +3,12 @@
 #include "Util/Managed.h"
 #include "Util/String.h"
 
+nullable_begin
+
 typedef struct
 {
 	const char* path;
-	String* content;
+	String*nullable content;
 } SourceFile;
 
 typedef struct
@@ -22,11 +24,6 @@ static SourceFile* SourceFile_Init_WithPath(SourceFile* self, const char* path)
 {
 	self->path = path;
 	self->content = File_ReadAllText(path);
-	if (self->content == NULL)
-	{
-		Release(self);
-		return NULL;
-	}
 	return self;
 }
 
@@ -40,14 +37,17 @@ static void SourceFile_Fini(SourceFile* self)
 }
 
 static SourceLocation SourceLocation_Create(const SourceFile* sourceFile,
-                                                   const size_t offset,
-                                                   const size_t length,
-                                                   const size_t line,
-                                                   const size_t column)
+                                            const size_t offset,
+                                            const size_t length,
+                                            const size_t line,
+                                            const size_t column)
 {
+	const ConstCharSpan snippet = sourceFile->content
+		                              ? ConstCharSpan_SubSpan(String_AsConstCharSpan((String*nonnull)sourceFile->content), offset, length)
+		                              : ConstCharSpan_Empty;
 	return (SourceLocation) {
 		.sourceFile = sourceFile,
-		.snippet = ConstCharSpan_SubSpan(String_AsConstCharSpan(sourceFile->content), offset, length),
+		.snippet = snippet,
 		.offset = offset,
 		.line = line,
 		.column = column,
@@ -58,12 +58,18 @@ static SourceLocation SourceLocation_Concat(const SourceLocation* first, const S
 {
 	assert(first->sourceFile == second->sourceFile);
 
+	const ConstCharSpan snippet = first->sourceFile->content
+		                              ? ConstCharSpan_SubSpan(
+			                              String_AsConstCharSpan((String*nonnull)first->sourceFile->content),
+			                              first->offset, (second->offset + second->snippet.length) - first->offset)
+		                              : ConstCharSpan_Empty;
+
 	return (SourceLocation) {
 		.sourceFile = first->sourceFile,
-		.snippet = ConstCharSpan_SubSpan(
-			String_AsConstCharSpan(first->sourceFile->content), first->offset,
-			(second->offset + second->snippet.length) - first->offset),
+		.snippet = snippet,
 		.line = first->line,
 		.column = first->column,
 	};
 }
+
+nullable_end

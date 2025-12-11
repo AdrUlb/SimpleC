@@ -5,6 +5,8 @@
 
 #define STRING_SHORT_CAPACITY__ 15
 
+nullable_begin
+
 typedef struct
 {
 	size_t capacity;
@@ -42,3 +44,5 @@ char* String_GetBuffer(String* str);
 const char* String_AsCString(const String* str);
 CharSpan String_AsCharSpan(String* str);
 ConstCharSpan String_AsConstCharSpan(String* str);
+
+nullable_end

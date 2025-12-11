@@ -3,6 +3,8 @@
 #include "AstTypeName.h"
 #include "Token.h"
 
+nullable_begin
+
 #define AST_EXPR_ENUM_VALUES \
 	X(UNARY) \
 	X(BINARY) \
@@ -150,7 +152,9 @@ typedef struct AstExpression AstExpression;
 
 #define LIST_TYPE AstExpressionList
 #define LIST_ELEMENT_TYPE AstExpression*
+nullable_end
 #include "Util/ListDef.h"
+nullable_begin
 #undef LIST_TYPE
 #undef LIST_ELEMENT_TYPE
 
@@ -291,6 +295,8 @@ static void AstExpression_Fini(const AstExpression* self)
 {
 	switch (self->type)
 	{
+		case AST_EXPR_PRIMARY:
+			break;
 		case AST_EXPR_UNARY:
 			Release(self->data.unary.expression);
 			break;
@@ -322,3 +328,5 @@ static void AstExpression_Fini(const AstExpression* self)
 			break;
 	}
 }
+
+nullable_end

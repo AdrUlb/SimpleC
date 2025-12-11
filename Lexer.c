@@ -4,6 +4,8 @@
 
 #include "SourceFile.h"
 
+nullable_begin
+
 static char Lexer_PeekChar(const Lexer* self);
 static char Lexer_ConsumeChar(Lexer* self);
 
@@ -45,7 +47,10 @@ restart:
 	startPosition = self->position;
 	startLine = self->line;
 	startColumn = self->column;
-	if (self->position >= String_Length(self->source->content))
+
+	String*nonnull content = (String*nonnull)self->source->content;
+
+	if (!content || self->position >= String_Length(content))
 	{
 		return Token_Create(TOKEN_EOF, SourceLocation_Create(self->source, startPosition, 0, startLine, startColumn), (Token_Data) { 0 });
 	}
@@ -69,8 +74,8 @@ restart:
 
 	char buf3[3];
 	buf3[0] = c;
-	buf3[1] = self->position < self->source->content->length ? String_AsCString(self->source->content)[self->position] : '\0';
-	buf3[2] = self->position + 1 < self->source->content->length ? String_AsCString(self->source->content)[self->position + 1] : '\0';
+	buf3[1] = self->position < content->length ? String_AsCString(content)[self->position] : '\0';
+	buf3[2] = self->position + 1 < content->length ? String_AsCString(content)[self->position + 1] : '\0';
 
 	// Comments
 	if (buf3[0] == '/' && buf3[1] == '/')
@@ -164,7 +169,7 @@ restart:
 				Lexer_ConsumeChar(self);
 			}
 		}
-		const ConstCharSpan integerPart = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), intStart, self->position - intStart);
+		const ConstCharSpan integerPart = ConstCharSpan_SubSpan(String_AsConstCharSpan(content), intStart, self->position - intStart);
 
 		// Check for fractional part or exponent, to distinguish integer vs floating-point literal
 		char nextCharLower = (char)tolower(Lexer_PeekChar(self));
@@ -182,8 +187,8 @@ restart:
 		{
 			// Read suffix
 			buf3[0] = (char)tolower(Lexer_PeekChar(self));
-			buf3[1] = self->position + 1 < self->source->content->length ? (char)tolower(String_AsCString(self->source->content)[self->position + 1]) : '\0';
-			buf3[2] = self->position + 2 < self->source->content->length ? (char)tolower(String_AsCString(self->source->content)[self->position + 2]) : '\0';
+			buf3[1] = self->position + 1 < content->length ? (char)tolower(String_AsCString(content)[self->position + 1]) : '\0';
+			buf3[2] = self->position + 2 < content->length ? (char)tolower(String_AsCString(content)[self->position + 2]) : '\0';
 
 			// Determine type based on suffix
 			Token_LiteralInteger_Type type = TOKEN_LITERAL_INTEGER_TYPE_INT;
@@ -256,7 +261,7 @@ restart:
 
 			// Determine if there actually is a fractional part
 			hasFractionalPart = self->position > fracStart;
-			fractionalPart = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), fracStart, self->position - fracStart);
+			fractionalPart = ConstCharSpan_SubSpan(String_AsConstCharSpan(content), fracStart, self->position - fracStart);
 		}
 
 		// Consume exponent part, if any
@@ -282,7 +287,7 @@ restart:
 				CompilerErrorList_Append(self->errors, CompilerError_Create(ErrorMsg_InvalidNumericLiteral, errorLoc));
 			}
 
-			exponent = ConstCharSpan_SubSpan(String_AsConstCharSpan(self->source->content), expStart, self->position - expStart);
+			exponent = ConstCharSpan_SubSpan(String_AsConstCharSpan(content), expStart, self->position - expStart);
 		}
 
 		Token_LiteralFloat_Type suffix = TOKEN_LITERAL_FLOAT_TYPE_DOUBLE;
@@ -321,8 +326,8 @@ restart:
 				case 'f':
 				{
 					buf3[0] = (char)tolower(Lexer_PeekChar(self));
-					buf3[1] = self->position + 1 < self->source->content->length
-						          ? (char)tolower(String_AsCString(self->source->content)[self->position + 1])
+					buf3[1] = self->position + 1 < content->length
+						          ? (char)tolower(String_AsCString(content)[self->position + 1])
 						          : '\0';
 					const bool isF16 = buf3[0] == '1' && buf3[1] == '6';
 					const bool isF32 = buf3[0] == '3' && buf3[1] == '2';
@@ -447,10 +452,12 @@ restart:
 
 char Lexer_PeekChar(const Lexer* self)
 {
-	if (self->position >= self->source->content->length)
+	const String*nonnull content = (String*nonnull)self->source->content;
+
+	if (self->position >= content->length)
 		return '\0';
 
-	const char c = String_AsCString(self->source->content)[self->position];
+	const char c = String_AsCString(content)[self->position];
 
 	if (c == '\r')
 		return '\n';
@@ -460,13 +467,15 @@ char Lexer_PeekChar(const Lexer* self)
 
 char Lexer_ConsumeChar(Lexer* self)
 {
-	if (self->position >= self->source->content->length)
+	const String*nonnull content = (String*nonnull)self->source->content;
+
+	if (self->position >= content->length)
 		return '\0';
 
-	const char c = String_AsCString(self->source->content)[self->position++];
+	const char c = String_AsCString(content)[self->position++];
 	if (c == '\r')
 	{
-		if (self->position < self->source->content->length && String_AsCString(self->source->content)[self->position] == '\n')
+		if (self->position < content->length && String_AsCString(content)[self->position] == '\n')
 			self->position++;
 
 		self->line++;
@@ -486,3 +495,5 @@ char Lexer_ConsumeChar(Lexer* self)
 
 	return c;
 }
+
+nullable_end

@@ -1,6 +1,8 @@
 #pragma once
 #include "AstTypeQualifier.h"
 
+nullable_begin
+
 typedef struct
 {
 	SourceLocation location;
@@ -18,3 +20,5 @@ static void AstPointer_Fini(const AstPointer* self)
 {
 	(void)self;
 }
+
+nullable_end

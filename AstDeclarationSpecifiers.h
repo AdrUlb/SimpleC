@@ -5,6 +5,8 @@
 #include "AstTypeSpecifier.h"
 #include "Util/Managed.h"
 
+nullable_begin
+
 typedef struct
 {
 	SourceLocation location;
@@ -36,3 +38,5 @@ static void AstDeclarationSpecifiers_Fini(const AstDeclarationSpecifiers* self)
 	Release(self->storageClassSpecifiers);
 	Release(self->typeSpecifiers);
 }
+
+nullable_end

@@ -2,48 +2,50 @@
 
 #include "Parser.h"
 
-#include <math.h>
 #include "AstDeclaration.h"
 #include "AstDeclarationSpecifiers.h"
 #include "AstDeclarator.h"
 #include "AstDirectDeclarator.h"
 #include "AstFunctionSpecifier.h"
 #include "AstPointer.h"
+#include "AstStatement.h"
 #include "AstStorageClassSpecifier.h"
 #include "Util/Managed.h"
 
+nullable_begin
+
 static Token* Parser_PeekToken(const Parser* self);
 static Token* Parser_ConsumeToken(Parser* self);
-static bool Parser_MatchToken(Parser* self, Token_Type type, SourceLocation* outLocation);
+static bool Parser_MatchToken(Parser* self, Token_Type type, SourceLocation*nullable outLocation);
 
-static AstExpression* Parser_ParsePrimaryExpression(Parser* self);
-static AstExpression* Parser_ParsePostfixExpression(Parser* self);
-static AstExpression* Parser_ParseUnaryExpression(Parser* self);
-static AstExpression* Parser_ParseCastExpression(Parser* self);
-static AstExpression* Parser_ParseMultiplicativeExpression(Parser* self);
-static AstExpression* Parser_ParseAdditiveExpression(Parser* self);
-static AstExpression* Parser_ParseShiftExpression(Parser* self);
-static AstExpression* Parser_ParseRelationalExpression(Parser* self);
-static AstExpression* Parser_ParseEqualityExpression(Parser* self);
-static AstExpression* Parser_ParseBitwiseAndExpression(Parser* self);
-static AstExpression* Parser_ParseBitwiseXorExpression(Parser* self);
-static AstExpression* Parser_ParseBitwiseOrExpression(Parser* self);
-static AstExpression* Parser_ParseLogicalAndExpression(Parser* self);
-static AstExpression* Parser_ParseLogicalOrExpression(Parser* self);
-static AstExpression* Parser_ParseConditionalExpression(Parser* self);
-static AstExpression* Parser_ParseAssignmentExpression(Parser* self);
-static AstDeclaration* Parser_TryParseDeclaration(Parser* self);
-static AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self);
-static AstStorageClassSpecifier* Parser_TryParseStorageClassSpecifier(Parser* self);
-static AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self);
-static AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* self);
+static AstExpression*nullable Parser_ParsePrimaryExpression(Parser* self);
+static AstExpression*nullable Parser_ParsePostfixExpression(Parser* self);
+static AstExpression*nullable Parser_ParseUnaryExpression(Parser* self);
+static AstExpression*nullable Parser_ParseCastExpression(Parser* self);
+static AstExpression*nullable Parser_ParseMultiplicativeExpression(Parser* self);
+static AstExpression*nullable Parser_ParseAdditiveExpression(Parser* self);
+static AstExpression*nullable Parser_ParseShiftExpression(Parser* self);
+static AstExpression*nullable Parser_ParseRelationalExpression(Parser* self);
+static AstExpression*nullable Parser_ParseEqualityExpression(Parser* self);
+static AstExpression*nullable Parser_ParseBitwiseAndExpression(Parser* self);
+static AstExpression*nullable Parser_ParseBitwiseXorExpression(Parser* self);
+static AstExpression*nullable Parser_ParseBitwiseOrExpression(Parser* self);
+static AstExpression*nullable Parser_ParseLogicalAndExpression(Parser* self);
+static AstExpression*nullable Parser_ParseLogicalOrExpression(Parser* self);
+static AstExpression*nullable Parser_ParseConditionalExpression(Parser* self);
+static AstExpression*nullable Parser_ParseAssignmentExpression(Parser* self);
+static AstDeclaration*nullable Parser_TryParseDeclaration(Parser* self);
+static AstDeclarationSpecifiers*nullable Parser_ParseDeclarationSpecifiers(Parser* self);
+static AstStorageClassSpecifier*nullable Parser_TryParseStorageClassSpecifier(Parser* self);
+static AstTypeSpecifier*nullable Parser_TryParseTypeSpecifier(Parser* self);
+static AstTypeSpecifierQualifierList*nullable Parser_TryParseSpecifierQualifierList(Parser* self);
 static AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation);
 static AstFunctionSpecifiers Parser_TryParseFunctionSpecifier(Parser* self, SourceLocation* outLocation);
-static AstDeclarator* Parser_TryParseDeclarator(Parser* self);
-static AstDirectDeclarator* Parser_TryParseDirectDeclarator(Parser* self);
-static AstPointer* Parser_TryParsePointer(Parser* self);
+static AstDeclarator*nullable Parser_TryParseDeclarator(Parser* self);
+static AstDirectDeclarator*nullable Parser_TryParseDirectDeclarator(Parser* self);
+static AstPointer*nullable Parser_TryParsePointer(Parser* self);
 static AstTypeQualifiers Parser_TryParseTypeQualifierList(Parser* self, SourceLocation* outLocation);
-static AstTypeName* Parser_TryParseTypeName(Parser* self);
+static AstTypeName*nullable Parser_TryParseTypeName(Parser* self);
 
 Token* Parser_PeekToken(const Parser* self)
 {
@@ -56,15 +58,15 @@ Token* Parser_PeekToken(const Parser* self)
 Token* Parser_ConsumeToken(Parser* self)
 {
 	if (self->currentTokenIndex >= self->tokens->size)
-		return NULL;
+		return &self->tokens->data[self->tokens->size - 1]; // Return EOF token
 
 	return &self->tokens->data[self->currentTokenIndex++];
 }
 
-bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocation* outLocation)
+bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocation*nullable outLocation)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL || token->type != type)
+	if (token->type != type)
 		return false;
 
 	Parser_ConsumeToken(self);
@@ -76,9 +78,6 @@ bool Parser_MatchToken(Parser* self, const Token_Type type, SourceLocation* outL
 AstExpression* Parser_ParsePrimaryExpression(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL)
-		return NULL;
-
 	if (token->type == TOKEN_PUNCTUATOR_PARENOPEN)
 	{
 		// (<expression>)
@@ -125,7 +124,7 @@ AstExpression* Parser_ParsePostfixExpression(Parser* self)
 		if (!Parser_MatchToken(self, TOKEN_PUNCTUATOR_PARENOPEN, NULL))
 			goto primary;
 
-		using const AstTypeName* type = Parser_TryParseTypeName(self);
+		using AstTypeName* type = Parser_TryParseTypeName(self);
 		if (!type)
 			goto primary;
 
@@ -136,7 +135,7 @@ AstExpression* Parser_ParsePostfixExpression(Parser* self)
 			goto primary;
 
 		// TODO: initializer list
-		RetainConst(type);
+		Retain(type);
 		abort();
 	}
 	else
@@ -152,9 +151,6 @@ AstExpression* Parser_ParsePostfixExpression(Parser* self)
 	while (true)
 	{
 		const Token* token = Parser_PeekToken(self);
-		if (token == NULL)
-			break;
-
 		if (token->type == TOKEN_PUNCTUATOR_BRACKETOPEN)
 		{
 			// Subscript expression
@@ -252,8 +248,6 @@ AstExpression* Parser_ParsePostfixExpression(Parser* self)
 AstExpression* Parser_ParseUnaryExpression(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL)
-		return NULL;
 
 	// "sizeof(<type>)" or "sizeof <expression>"
 	if (token->type == TOKEN_KEYWORD_SIZEOF)
@@ -389,8 +383,6 @@ AstExpression* Parser_ParseMultiplicativeExpression(Parser* self)
 	while (true)
 	{
 		const Token* token = Parser_PeekToken(self);
-		if (token == NULL)
-			break;
 
 		AstBinaryOperation op;
 		switch (token->type)
@@ -431,8 +423,6 @@ AstExpression* Parser_ParseAdditiveExpression(Parser* self)
 	while (true)
 	{
 		const Token* token = Parser_PeekToken(self);
-		if (token == NULL)
-			break;
 
 		AstBinaryOperation op;
 		switch (token->type)
@@ -470,8 +460,6 @@ AstExpression* Parser_ParseShiftExpression(Parser* self)
 	while (true)
 	{
 		const Token* token = Parser_PeekToken(self);
-		if (token == NULL)
-			break;
 
 		AstBinaryOperation op;
 		switch (token->type)
@@ -509,8 +497,6 @@ AstExpression* Parser_ParseRelationalExpression(Parser* self)
 	while (true)
 	{
 		const Token* token = Parser_PeekToken(self);
-		if (token == NULL)
-			break;
 
 		AstBinaryOperation op;
 		switch (token->type)
@@ -554,8 +540,6 @@ AstExpression* Parser_ParseEqualityExpression(Parser* self)
 	while (true)
 	{
 		const Token* token = Parser_PeekToken(self);
-		if (token == NULL)
-			break;
 
 		AstBinaryOperation op;
 		switch (token->type)
@@ -891,8 +875,6 @@ AstDeclarationSpecifiers* Parser_ParseDeclarationSpecifiers(Parser* self)
 AstStorageClassSpecifier* Parser_TryParseStorageClassSpecifier(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL)
-		return NULL;
 
 	AstStorageClassSpecifier_Type type;
 	switch (token->type)
@@ -931,8 +913,6 @@ AstStorageClassSpecifier* Parser_TryParseStorageClassSpecifier(Parser* self)
 AstTypeSpecifier* Parser_TryParseTypeSpecifier(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL)
-		return NULL;
 
 	AstTypeSpecifier_Type type;
 	switch (token->type)
@@ -1045,8 +1025,6 @@ AstTypeSpecifierQualifierList* Parser_TryParseSpecifierQualifierList(Parser* sel
 AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* outLocation)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL)
-		return AST_TYPEQUALIFIERS_NONE;
 
 	AstTypeQualifiers type;
 	switch (token->type)
@@ -1079,8 +1057,6 @@ AstTypeQualifiers Parser_TryParseTypeQualifier(Parser* self, SourceLocation* out
 AstFunctionSpecifiers Parser_TryParseFunctionSpecifier(Parser* self, SourceLocation* outLocation)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL)
-		return AST_FUNCTIONSPECIFIERS_NONE;
 
 	AstFunctionSpecifiers type;
 	switch (token->type)
@@ -1122,8 +1098,6 @@ AstDeclarator* Parser_TryParseDeclarator(Parser* self)
 AstDirectDeclarator* Parser_TryParseDirectDeclarator(Parser* self)
 {
 	const Token* token = Parser_PeekToken(self);
-	if (token == NULL)
-		return NULL;
 
 	if (token->type == TOKEN_IDENTIFIER)
 	{
@@ -1211,3 +1185,5 @@ AstTypeName* Parser_TryParseTypeName(Parser* self) // type-name
 
 	return NewWith(AstTypeName, Args, specifierQualifierList, specifierQualifierList->location);
 }
+
+nullable_end

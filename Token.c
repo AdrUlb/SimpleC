@@ -3,6 +3,8 @@
 #include "Lexer.h"
 #include "Util/Managed.h"
 
+nullable_begin
+
 String* Token_LiteralString_GetValue(const Token* token)
 {
 	const ConstCharSpan lexeme = token->location.snippet;
@@ -193,6 +195,8 @@ void Token_Print(const Token* token)
 			case TOKEN_LITERAL_INTEGER_TYPE_UNSIGNEDLONGLONG:
 				printf("unsigned long long\n");
 				break;
+			default:
+				assert(false && "unreachable");
 		}
 	}
 	else if (token->type == TOKEN_LITERAL_FLOAT)
@@ -243,6 +247,10 @@ void Token_Print(const Token* token)
 			case TOKEN_LITERAL_FLOAT_TYPE_DECIMAL128:
 				printf("decimal128\n");
 				break;
+			default:
+				assert(false && "unreachable");
 		}
 	}
 }
+
+nullable_end

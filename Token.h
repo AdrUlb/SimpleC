@@ -2,6 +2,8 @@
 #include "SourceFile.h"
 #include "Util/Span.h"
 
+nullable_begin
+
 #define TOKEN_ENUM_VALUES \
 	X(EOF) \
 	X(UNEXPECTED) \
@@ -334,12 +336,6 @@ typedef struct
 	Token_Data data;
 } Token;
 
-#define LIST_TYPE TokenList
-#define LIST_ELEMENT_TYPE Token
-#include "Util/ListDef.h"
-#undef LIST_TYPE
-#undef LIST_ELEMENT_TYPE
-
 static Token Token_Create(const Token_Type type, const SourceLocation location, const Token_Data data)
 {
 	return (Token) {
@@ -350,3 +346,12 @@ static Token Token_Create(const Token_Type type, const SourceLocation location, 
 }
 
 void Token_Print(const Token* token);
+String* Token_LiteralString_GetValue(const Token* token);
+
+nullable_end
+
+#define LIST_TYPE TokenList
+#define LIST_ELEMENT_TYPE Token
+#include "Util/ListDef.h"
+#undef LIST_TYPE
+#undef LIST_ELEMENT_TYPE

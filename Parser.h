@@ -4,6 +4,8 @@
 #include "AstExpression.h"
 #include "Token.h"
 
+nullable_begin
+
 typedef struct
 {
 	TokenList* tokens;
@@ -19,4 +21,6 @@ static Parser Parser_Create(TokenList* tokens, CompilerErrorList* errorList)
 	};
 }
 
-AstExpression* Parser_ParseExpression(Parser* self);
+AstExpression*nullable Parser_ParseExpression(Parser* self);
+
+nullable_end
