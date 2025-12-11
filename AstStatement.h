@@ -61,15 +61,27 @@ typedef struct
 	SourceLocation location;
 	AstStatement_Type type;
 	AstStatement_Data data;
-
 } AstStatement;
 
-static AstStatement* AstExpression_Init_WithExpression(AstStatement* self, const AstExpressionStatement data, const SourceLocation location)
+static AstStatement* AstStatement_Init_WithExpression(AstStatement* self, AstExpression*nullable expression, const SourceLocation location)
 {
 	self->type = AST_STMT_EXPRESSION;
-	self->data.expression = data;
+	self->data.expression = (AstExpressionStatement) { .expression = expression };
 	self->location = location;
 	return self;
+}
+
+static void AstStatement_Fini(const AstStatement* self)
+{
+	switch (self->type)
+	{
+		case AST_STMT_EXPRESSION:
+			if (self->data.expression.expression)
+				AstExpression_Fini((AstExpression*)self->data.expression.expression);
+			break;
+		default:
+			break;
+	}
 }
 
 nullable_end

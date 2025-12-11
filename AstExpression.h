@@ -227,66 +227,82 @@ struct AstExpression
 	AstExpression_Data data;
 };
 
-static AstExpression* AstExpression_Init_WithUnary(AstExpression* self, const AstUnaryExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithUnary(AstExpression* self,
+                                                   const AstUnaryOperation operation,
+                                                   AstExpression* expression,
+                                                   const SourceLocation location)
 {
 	self->type = AST_EXPR_UNARY;
-	self->data.unary = data;
+	self->data.unary = (AstUnaryExpression) { .operation = operation, .expression = expression };
 	self->location = location;
 	return self;
 }
 
-static AstExpression* AstExpression_Init_WithBinary(AstExpression* self, const AstBinaryExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithBinary(AstExpression* self,
+                                                    const AstBinaryOperation operation,
+                                                    AstExpression* left,
+                                                    AstExpression* right,
+                                                    const SourceLocation location)
 {
 	self->type = AST_EXPR_BINARY;
-	self->data.binary = data;
+	self->data.binary = (AstBinaryExpression) { .operation = operation, .left = left, .right = right };
 	self->location = location;
 	return self;
 }
 
-static AstExpression* AstExpression_Init_WithTernary(AstExpression* self, const AstTernaryExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithTernary(AstExpression* self,
+                                                     const AstTernaryOperation operation,
+                                                     AstExpression* left,
+                                                     AstExpression* middle,
+                                                     AstExpression* right,
+                                                     const SourceLocation location)
 {
 	self->type = AST_EXPR_TERNARY;
-	self->data.ternary = data;
+	self->data.ternary = (AstTernaryExpression) { .operation = operation, .left = left, .middle = middle, .right = right };
 	self->location = location;
 	return self;
 }
 
-static AstExpression* AstExpression_Init_WithCast(AstExpression* self, const AstCastExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithCast(AstExpression* self, AstTypeName* typeName, AstExpression* expression, const SourceLocation location)
 {
 	self->type = AST_EXPR_CAST;
-	self->data.cast = data;
+	self->data.cast = (AstCastExpression) { .typeName = typeName, .expression = expression };
 	self->location = location;
 	return self;
 }
 
-static AstExpression* AstExpression_Init_WithSizeofType(AstExpression* self, const AstSizeofTypeExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithSizeofType(AstExpression* self, AstTypeName* typeName, const SourceLocation location)
 {
 	self->type = AST_EXPR_SIZEOF_TYPE;
-	self->data.sizeofType = data;
+	self->data.sizeofType = (AstSizeofTypeExpression) { .typeName = typeName };
 	self->location = location;
 	return self;
 }
 
-static AstExpression* AstExpression_Init_WithMemberAccess(AstExpression* self, const AstMemberAccessExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithMemberAccess(AstExpression* self,
+                                                          AstExpression* expression,
+                                                          const ConstCharSpan memberName,
+                                                          const bool isPointerAccess,
+                                                          const SourceLocation location)
 {
 	self->type = AST_EXPR_MEMBER_ACCESS;
-	self->data.memberAccess = data;
+	self->data.memberAccess = (AstMemberAccessExpression) { .expression = expression, .memberName = memberName, .isPointerAccess = isPointerAccess };
 	self->location = location;
 	return self;
 }
 
-static AstExpression* AstExpression_Init_WithCall(AstExpression* self, const AstCallExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithCall(AstExpression* self, AstExpression* callee, AstExpressionList* arguments, const SourceLocation location)
 {
 	self->type = AST_EXPR_CALL;
-	self->data.call = data;
+	self->data.call = (AstCallExpression) { .callee = callee, .arguments = arguments };
 	self->location = location;
 	return self;
 }
 
-static AstExpression* AstExpression_Init_WithPrimary(AstExpression* self, const AstPrimaryExpression data, const SourceLocation location)
+static AstExpression* AstExpression_Init_WithPrimary(AstExpression* self, const Token literal, const SourceLocation location)
 {
 	self->type = AST_EXPR_PRIMARY;
-	self->data.primary = data;
+	self->data.primary = (AstPrimaryExpression) { .literal = literal };
 	self->location = location;
 	return self;
 }

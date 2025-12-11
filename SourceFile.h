@@ -43,7 +43,7 @@ static SourceLocation SourceLocation_Create(const SourceFile* sourceFile,
                                             const size_t column)
 {
 	const ConstCharSpan snippet = sourceFile->content
-		                              ? ConstCharSpan_SubSpan(String_AsConstCharSpan((String*nonnull)sourceFile->content), offset, length)
+		                              ? ConstCharSpan_SubSpan(String_AsConstCharSpan((String*)sourceFile->content), offset, length)
 		                              : ConstCharSpan_Empty;
 	return (SourceLocation) {
 		.sourceFile = sourceFile,
@@ -60,7 +60,7 @@ static SourceLocation SourceLocation_Concat(const SourceLocation* first, const S
 
 	const ConstCharSpan snippet = first->sourceFile->content
 		                              ? ConstCharSpan_SubSpan(
-			                              String_AsConstCharSpan((String*nonnull)first->sourceFile->content),
+			                              String_AsConstCharSpan((String*)first->sourceFile->content),
 			                              first->offset, (second->offset + second->snippet.length) - first->offset)
 		                              : ConstCharSpan_Empty;
 

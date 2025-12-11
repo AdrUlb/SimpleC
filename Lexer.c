@@ -48,7 +48,7 @@ restart:
 	startLine = self->line;
 	startColumn = self->column;
 
-	String*nonnull content = (String*nonnull)self->source->content;
+	String* content = self->source->content;
 
 	if (!content || self->position >= String_Length(content))
 	{
@@ -452,7 +452,7 @@ restart:
 
 char Lexer_PeekChar(const Lexer* self)
 {
-	const String*nonnull content = (String*nonnull)self->source->content;
+	const String* content = (String*)self->source->content;
 
 	if (self->position >= content->length)
 		return '\0';
@@ -467,7 +467,7 @@ char Lexer_PeekChar(const Lexer* self)
 
 char Lexer_ConsumeChar(Lexer* self)
 {
-	const String*nonnull content = (String*nonnull)self->source->content;
+	const String* content = (String*)self->source->content;
 
 	if (self->position >= content->length)
 		return '\0';

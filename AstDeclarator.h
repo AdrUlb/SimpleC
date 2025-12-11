@@ -4,12 +4,12 @@
 
 nullable_begin
 
-typedef struct AstDeclarator
+struct AstDeclarator
 {
 	AstPointer*nullable pointer;
 	AstDirectDeclarator* directDeclarator;
 	SourceLocation location;
-} AstDeclarator;
+};
 
 static AstDeclarator* AstDeclarator_Init_WithArgs(AstDeclarator* self, AstPointer*nullable pointer, AstDirectDeclarator* directDeclarator, const SourceLocation location)
 {

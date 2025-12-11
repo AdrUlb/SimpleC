@@ -6,7 +6,7 @@
 
 nullable_begin
 
-typedef struct Lexer
+typedef struct
 {
 	const SourceFile* source;
 	size_t position;

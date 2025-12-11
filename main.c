@@ -274,7 +274,7 @@ static void AstPrinter_PrintExpression(AstPrinter* self, const AstExpression* ex
 
 static void Parse(const SourceFile* source, CompilerErrorList* errorList)
 {
-	using TokenList*nonnull tokens = New(TokenList);
+	using TokenList* tokens = New(TokenList);
 
 	Lexer lexer = Lexer_Create(source, errorList);
 
